@@ -815,9 +815,14 @@ gdb_readline_no_editing_callback (gdb_client_data client_data)
     {
       /* Read from stdin if we are executing a user defined command.
          This is the right thing for prompt_for_continue, at least.  */
-      c = fgetc (ui->instream != NULL ? ui->instream : ui->stdin_stream);
 
-      if (c == EOF)
+    #ifdef _WIN32
+      char ubuf[4];
+      c = _ufgetc(ui->instream != NULL ? ui->instream : ui->stdin_stream,&ubuf[0]);
+    #else
+      c = fgetc (ui->instream != NULL ? ui->instream : ui->stdin_stream);
+    #endif
+     if (c == EOF)
 	{
 	  if (line_buffer.used_size > 0)
 	    {
@@ -831,7 +836,18 @@ gdb_readline_no_editing_callback (gdb_client_data client_data)
 	  return;
 	}
 
+    #ifdef _WIN32
+     if (c == 1 && ubuf[0] == 8 && line_buffer.used_size > 0) {
+      line_buffer.used_size--;
+      continue;
+     }
+    #endif
+
+    #ifdef _WIN32
+      if (c == 1 && ubuf[0] == '\n')
+    #else
       if (c == '\n')
+    #endif
 	{
 	  if (line_buffer.used_size > 0
 	      && line_buffer.buffer[line_buffer.used_size - 1] == '\r')
@@ -839,7 +855,14 @@ gdb_readline_no_editing_callback (gdb_client_data client_data)
 	  break;
 	}
 
-      buffer_grow_char (&line_buffer, c);
+    #ifdef _WIN32
+       for (int i = 0; i < c; i++ ) {
+         buffer_grow_char (&line_buffer, ubuf[i]);
+       }
+    #else
+     buffer_grow_char (&line_buffer, c);
+    #endif
+
     }
 
   buffer_grow_char (&line_buffer, '\0');

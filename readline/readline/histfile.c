@@ -107,6 +107,10 @@ extern int errno;
 #  define PATH_MAX	1024	/* default */
 #endif
 
+#ifdef WTOU_H
+#define rename(o,n) urename(o,n) 
+#endif
+
 extern void _hs_append_history_line PARAMS((int, const char *));
 
 /* history file version; currently unused */
@@ -646,7 +650,11 @@ history_do_write (const char *filename, int nelements, int overwrite)
   mode = overwrite ? O_WRONLY|O_CREAT|O_TRUNC|O_BINARY : O_WRONLY|O_APPEND|O_BINARY;
 #endif
   histname = history_filename (filename);
+#ifdef WTOU_H
+  exists = histname ? (ustat (histname, &finfo) == 0) : 0;
+#else
   exists = histname ? (stat (histname, &finfo) == 0) : 0;
+#endif
 
   tempname = (overwrite && exists && S_ISREG (finfo.st_mode)) ? history_tempfile (histname) : 0;
   output = tempname ? tempname : histname;

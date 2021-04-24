@@ -54,8 +54,10 @@ ser_windows_open (struct serial *scb, const char *name)
   struct ser_windows_state *state;
   COMMTIMEOUTS timeouts;
 
-  h = CreateFile (name, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+  wchar_t* wn = utow(name);
+  h = CreateFileW (wn, GENERIC_READ | GENERIC_WRITE, 0, NULL,
 		  OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+  free((void*)wn);
   if (h == INVALID_HANDLE_VALUE)
     {
       errno = ENOENT;
@@ -565,7 +567,7 @@ console_select_thread (void *arg)
 
 	  /* We've got a pending event on the console.  See if it's
 	     of interest.  */
-	  if (!PeekConsoleInput (h, &record, 1, &n_records) || n_records != 1)
+	  if (!PeekConsoleInputW (h, &record, 1, &n_records) || n_records != 1)
 	    {
 	      /* Something went wrong.  Maybe the console is gone.  */
 	      SetEvent (state->except_event);
@@ -601,7 +603,7 @@ console_select_thread (void *arg)
 	    }
 
 	  /* Otherwise discard it and wait again.  */
-	  ReadConsoleInput (h, &record, 1, &n_records);
+	  ReadConsoleInputW (h, &record, 1, &n_records);
 	}
 
       SetEvent(state->have_stopped);

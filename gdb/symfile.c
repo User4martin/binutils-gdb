@@ -1728,8 +1728,10 @@ symfile_bfd_open (const char *name)
     {
       gdb::unique_xmalloc_ptr<char> expanded_name (tilde_expand (name));
 
+      char* path = getenv ("PATH");
+
       /* Look down path for it, allocate 2nd new malloc'd copy.  */
-      desc = openp (getenv ("PATH"),
+      desc = openp (path,
 		    OPF_TRY_CWD_FIRST | OPF_RETURN_REALPATH,
 		    expanded_name.get (), O_RDONLY | O_BINARY, &absolute_name);
 #if defined(__GO32__) || defined(_WIN32) || defined (__CYGWIN__)
@@ -1738,11 +1740,14 @@ symfile_bfd_open (const char *name)
 	  char *exename = (char *) alloca (strlen (expanded_name.get ()) + 5);
 
 	  strcat (strcpy (exename, expanded_name.get ()), ".exe");
-	  desc = openp (getenv ("PATH"),
+	  desc = openp (path,
 			OPF_TRY_CWD_FIRST | OPF_RETURN_REALPATH,
 			exename, O_RDONLY | O_BINARY, &absolute_name);
 	}
 #endif
+      #ifdef WTOU_H
+       free(path);
+      #endif
       if (desc < 0)
 	perror_with_name (expanded_name.get ());
 

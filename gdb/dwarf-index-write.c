@@ -1650,7 +1650,11 @@ struct index_wip_file
 
     /* Close and move the str file in place.  */
     unlink_file.reset ();
+   #ifdef WTOU_H
+    if (urename (filename_temp.data (), filename.c_str ()) != 0)
+   #else
     if (rename (filename_temp.data (), filename.c_str ()) != 0)
+   #endif
       perror_with_name (("rename"));
   }
 

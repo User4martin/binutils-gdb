@@ -155,3 +155,9 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
+
+#ifdef _WIN32
+#include "../gdb/wtou.h"
+#define open uopen3
+#endif
+

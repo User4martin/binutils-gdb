@@ -106,6 +106,23 @@ find_non_slash (char const *s)
    enough to provoke such a failure all by itself (e.g. if the component
    has length PATH_MAX or greater on systems that define PATH_MAX).  */
 
+#ifdef _WIN32
+#include <windows.h>
+int uchdir (const char *dir)
+{
+ int size;
+ wchar_t* wname = NULL;
+ size = MultiByteToWideChar(CP_UTF8,0,dir,-1,NULL,0);
+ if (size) {
+  wname = (wchar_t *) calloc(size,sizeof(wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,dir,-1,wname,size);
+ }
+ int r = _wchdir (wname);
+ free((void*)wname);
+ return r;
+}
+#endif
+
 int
 chdir_long (char *dir)
 {

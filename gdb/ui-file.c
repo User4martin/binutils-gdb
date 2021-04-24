@@ -115,7 +115,12 @@ term_cli_styling ()
      regardless.  */
 #ifndef _WIN32
   if (term == nullptr || !strcmp (term, "dumb"))
+  {
+      #ifdef WTOU_H
+       free(term);
+      #endif
     return false;
+  }
 #else
   /* But if they do define $TERM, let us behave the same as on Posix
      platforms, for the benefit of programs which invoke GDB as their
@@ -250,7 +255,12 @@ stdio_file::read (char *buf, long length_buf)
       return -1;
   }
 
+  //#ifdef _WIN32
+  //return uread (m_fd, buf, length_buf);
+  //#else
   return ::read (m_fd, buf, length_buf);
+  //#endif
+
 }
 
 void

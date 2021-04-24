@@ -762,7 +762,11 @@ remote_fileio_func_rename (remote_target *remote, char *buf)
       return;
     }
 
+ #ifdef WTOU_H
+  ret = urename (oldpath, newpath);
+ #else
   ret = rename (oldpath, newpath);
+ #endif
 
   if (ret == -1)
     {

@@ -63,8 +63,11 @@ int
 unlink_if_ordinary (const char *name)
 {
   struct stat st;
-
+#ifdef WTOU_H
+  if (ustat (name, &st) == 0
+#else
   if (lstat (name, &st) == 0
+#endif
       && (S_ISREG (st.st_mode) || S_ISLNK (st.st_mode)))
     return unlink (name);
 

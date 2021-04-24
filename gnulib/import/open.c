@@ -27,11 +27,30 @@
 #include <sys/types.h>
 #undef __need_system_fcntl_h
 
+#ifdef _WIN32
+# include <windows.h>
+static int
+orig_open (const char *filename, int flags, mode_t mode)
+{
+ wchar_t* wf = NULL;
+ int size;
+ size = MultiByteToWideChar(CP_UTF8,0,filename,-1,NULL,0);
+ if (size) {
+  wf = (wchar_t *) calloc(size,sizeof(wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,filename,-1,wf,size);
+ }
+ int fd = _wopen (wf, flags, mode);
+ free (wf);
+ return fd;
+}
+#else
 static int
 orig_open (const char *filename, int flags, mode_t mode)
 {
   return open (filename, flags, mode);
 }
+#endif
+
 
 /* Specification.  */
 /* Write "fcntl.h" here, not <fcntl.h>, otherwise OSF/1 5.1 DTK cc eliminates

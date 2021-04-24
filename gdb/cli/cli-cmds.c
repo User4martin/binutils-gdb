@@ -62,6 +62,10 @@
 #include <algorithm>
 #include <string>
 
+#ifdef _WIN32
+#include "wtou.h"
+#endif
+
 /* Prototypes for local utility functions */
 
 static void print_sal_location (const symtab_and_line &sal);

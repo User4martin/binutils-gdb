@@ -27,6 +27,10 @@
 #include <windows.h>
 #endif
 
+#ifdef _WIN32
+#include "wtou.h"
+#endif 
+
 /* See gdbsupport/pathstuff.h.  */
 
 gdb::unique_xmalloc_ptr<char>
@@ -57,15 +61,17 @@ gdb_realpath (const char *filename)
 
 #if defined (_WIN32)
   {
-    char buf[MAX_PATH];
-    DWORD len = GetFullPathName (filename, MAX_PATH, buf, NULL);
+    wchar_t* wf = utow(filename);
+    wchar_t buf[MAX_PATH];
+    DWORD len = GetFullPathNameW (wf, MAX_PATH, buf, NULL);
+    free (wf);
 
     /* The file system is case-insensitive but case-preserving.
        So it is important we do not lowercase the path.  Otherwise,
        we might not be able to display the original casing in a given
        path.  */
     if (len > 0 && len < MAX_PATH)
-      return make_unique_xstrdup (buf);
+      return gdb::unique_xmalloc_ptr<char> (wtou ( buf ));
   }
 #else
   {
@@ -230,11 +236,18 @@ get_standard_cache_dir ()
     }
 #endif
 
-  const char *home = getenv ("HOME");
+  #ifdef _WIN32
+   const char *home = getenv ("USERPROFILE");
+  #else
+   const char *home = getenv ("HOME");
+  #endif
   if (home != NULL)
     {
       /* Make sure the path is absolute and tilde-expanded.  */
       gdb::unique_xmalloc_ptr<char> abs (gdb_abspath (home));
+      #ifdef WTOU_H
+       free((void*)home);
+      #endif
       return string_printf ("%s/" HOME_CACHE_DIR "/gdb", abs.get ());
     }
 

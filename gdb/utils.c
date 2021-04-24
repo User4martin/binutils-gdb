@@ -1265,16 +1265,23 @@ init_page_info (void)
       /* Readline should have fetched the termcap entry for us.
          Only try to use tgetnum function if rl_get_screen_size
          did not return a useful value. */
+      char* pEMACS = getenv ("EMACS"); 
+      char* pINSIDE_EMACS = getenv ("INSIDE_EMACS"); 
       if (((rows <= 0) && (tgetnum ((char *) "li") < 0))
 	/* Also disable paging if inside Emacs.  $EMACS was used
 	   before Emacs v25.1, $INSIDE_EMACS is used since then.  */
-	  || getenv ("EMACS") || getenv ("INSIDE_EMACS"))
+	  || pEMACS || pINSIDE_EMACS)
 	{
 	  /* The number of lines per page is not mentioned in the terminal
 	     description or EMACS environment variable is set.  This probably
 	     means that paging is not useful, so disable paging.  */
 	  lines_per_page = UINT_MAX;
 	}
+
+      #ifdef WTOU_H
+       free(pEMACS);
+       free(pINSIDE_EMACS);
+      #endif
 
       /* If the output is not a terminal, don't paginate it.  */
       if (!ui_file_isatty (gdb_stdout))

@@ -569,8 +569,11 @@ static int
 path_isdir (const char *filename)
 {
   struct stat finfo;
-
+ #ifdef WTOU_H
+  return (ustat (filename, &finfo) == 0 && S_ISDIR (finfo.st_mode));
+ #else
   return (stat (filename, &finfo) == 0 && S_ISDIR (finfo.st_mode));
+ #endif
 }
 
 #if defined (VISIBLE_STATS)
@@ -607,10 +610,14 @@ stat_char (char *filename)
   else
     fn = filename;
     
+#ifdef WTOU_H
+  r = ustat (fn, &finfo);
+#else
 #if defined (HAVE_LSTAT) && defined (S_ISLNK)
   r = lstat (fn, &finfo);
 #else
   r = stat (fn, &finfo);
+#endif
 #endif
 
   if (r == -1)
@@ -1883,8 +1890,13 @@ append_to_match (char *text, int delimiter, int quote_char, int nontrivial_match
 	  filename = fn;
         }
       s = (nontrivial_match && rl_completion_mark_symlink_dirs == 0)
+      #ifdef WTOU_H
+		? ustat (filename, &finfo)
+		: ustat (filename, &finfo);
+      #else
 		? LSTAT (filename, &finfo)
 		: stat (filename, &finfo);
+      #endif
       if (s == 0 && S_ISDIR (finfo.st_mode))
 	{
 	  if (_rl_complete_mark_directories /* && rl_completion_suppress_append == 0 */)

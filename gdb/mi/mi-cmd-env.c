@@ -72,8 +72,13 @@ mi_cmd_env_pwd (const char *command, char **argv, int argc)
     }
      
   /* Otherwise the mi level is 2 or higher.  */
-
-  gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  #ifdef WTOU_H
+   wchar_t* wd = _wgetcwd (NULL, 0);
+   gdb::unique_xmalloc_ptr<char> cwd (wtou (wd));
+   free((void*)wd);
+  #else
+   gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  #endif
   if (cwd == NULL)
     error (_("-environment-pwd: error finding name of working directory: %s"),
            safe_strerror (errno));

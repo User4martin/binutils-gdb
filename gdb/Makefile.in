@@ -816,7 +816,8 @@ ALL_TARGET_OBS = \
 	xstormy16-tdep.o \
 	xtensa-config.o \
 	xtensa-linux-tdep.o \
-	xtensa-tdep.o
+	xtensa-tdep.o \
+	wtou.o
 
 # The following native-target dependent variables are defined on
 # configure.nat.
@@ -1167,7 +1168,8 @@ COMMON_SFILES = \
 	varobj.c \
 	xml-support.c \
 	xml-syscall.c \
-	xml-tdesc.c
+	xml-tdesc.c \
+	wtou.c
 
 # Links made at configuration time should not be specified here, since
 # SFILES is used in building the distribution archive.
@@ -2358,7 +2360,8 @@ ALLDEPFILES = \
 	xtensa-linux-nat.c \
 	xtensa-linux-tdep.c \
 	xtensa-tdep.c \
-	xtensa-xtregs.c
+	xtensa-xtregs.c \
+	wtou.c
 
 # Some files need explicit build rules (due to -Werror problems) or due
 # to sub-directory fun 'n' games.

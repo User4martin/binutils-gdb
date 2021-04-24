@@ -45,6 +45,10 @@
 # include <fcntl.h>
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 DIR *
 opendir (const char *dir_name)
 {

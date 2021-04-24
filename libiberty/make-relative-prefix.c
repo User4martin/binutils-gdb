@@ -292,7 +292,11 @@ make_relative_prefix_1 (const char *progname, const char *bin_prefix,
 		    {
 #if defined (HAVE_SYS_STAT_H) && defined (S_ISREG)
 		      struct stat st;
-		      if (stat (nstore, &st) >= 0 && S_ISREG (st.st_mode))
+             #ifdef WTOU_H
+		      if (ustat (nstore, &st) >= 0 && S_ISREG (st.st_mode))
+             #else
+              if (stat (nstore, &st) >= 0 && S_ISREG (st.st_mode))
+             #endif
 #endif
 			{
 			  progname = nstore;

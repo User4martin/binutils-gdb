@@ -347,7 +347,7 @@ ctf_open (const char *filename, const char *target, int *errp)
   ctf_archive_t *arc;
   int fd;
 
-  if ((fd = open (filename, O_RDONLY)) == -1)
+  if ((fd = open (filename, O_RDONLY, 0)) == -1)
     {
       if (errp != NULL)
 	*errp = errno;

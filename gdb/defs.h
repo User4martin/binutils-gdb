@@ -55,6 +55,10 @@
 #include "gdbsupport/host-defs.h"
 #include "gdbsupport/enum-flags.h"
 
+#ifdef _WIN32
+#include "wtou.h"
+#endif
+
 /* Scope types enumerator.  List the types of scopes the compiler will
    accept.  */
 

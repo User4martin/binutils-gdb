@@ -116,12 +116,21 @@ getpwd (void)
 {
   static char *pwd = 0;
 
+  #ifdef WTOU_H
+  {
+   wchar_t* wd = _wgetcwd (NULL, 0);
+   pwd = wtou(wd);
+   free((void*)wd);
+  }
+  #else
+
   if (!pwd)
     pwd = getcwd (XNEWVEC (char, MAXPATHLEN + 1), MAXPATHLEN + 1
 #ifdef VMS
 		  , 0
 #endif
 		  );
+#endif
   return pwd;
 }
 

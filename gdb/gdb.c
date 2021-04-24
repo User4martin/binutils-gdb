@@ -25,6 +25,10 @@ main (int argc, char **argv)
 {
   struct captured_main_args args;
 
+  #ifdef _WIN32
+   argv = getwargv(&argc);
+  #endif
+
   memset (&args, 0, sizeof args);
   args.argc = argc;
   args.argv = argv;

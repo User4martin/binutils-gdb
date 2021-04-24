@@ -28,3 +28,8 @@
 #else
 int chdir_long (char *dir);
 #endif
+
+#ifdef _WIN32
+int uchdir (const char *dir);
+#define chdir(Dir) uchdir(Dir)
+#endif

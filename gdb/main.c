@@ -264,16 +264,30 @@ get_init_files (std::vector<std::string> *system_gdbinit,
 	    = relocate_gdbinit_path_maybe_in_datadir
 		(SYSTEM_GDBINIT_DIR, SYSTEM_GDBINIT_DIR_RELOCATABLE);
 	  if (!relocated_gdbinit_dir.empty ()) {
-	    gdb_dir_up dir (opendir (relocated_gdbinit_dir.c_str ()));
+        #ifdef WTOU_H
+         _WDIR* dir (uopendir (relocated_gdbinit_dir.c_str ()));
+        #else
+	     gdb_dir_up dir (opendir (relocated_gdbinit_dir.c_str ()));
+        #endif
 	    if (dir != nullptr)
 	      {
 		std::vector<std::string> files;
 		for (;;)
 		  {
-		    struct dirent *ent = readdir (dir.get ());
+            #ifdef WTOU_H
+             struct _wdirent *ent = _wreaddir (dir);
+            #else
+		     struct dirent *ent = readdir (dir.get ());
+            #endif
 		    if (ent == nullptr)
 		      break;
-		    std::string name (ent->d_name);
+            #ifdef WTOU_H
+             char* _dn = wtou(ent->d_name);
+             std::string name = _dn;
+             free((void*)_dn);
+            #else
+		     std::string name (ent->d_name);
+            #endif
 		    if (name == "." || name == "..")
 		      continue;
 		    /* ent->d_type is not available on all systems (e.g. mingw,
@@ -292,14 +306,20 @@ get_init_files (std::vector<std::string> *system_gdbinit,
 		    if (extlang != nullptr && ext_lang_present_p (extlang))
 		      files.push_back (std::move (filename));
 		  }
+        #ifdef WTOU_H
+         _wclosedir(dir);
+        #endif
 		std::sort (files.begin (), files.end ());
 		sysgdbinit.insert (sysgdbinit.end (),
 				   files.begin (), files.end ());
 	      }
 	  }
 	}
-
+     #ifdef _WIN32
+      const char *homedir = getenv ("USERPROFILE");
+     #else
       const char *homedir = getenv ("HOME");
+     #endif
 
       /* If the .gdbinit file in the current directory is the same as
 	 the $HOME/.gdbinit file, it should not be sourced.  homebuf
@@ -317,6 +337,9 @@ get_init_files (std::vector<std::string> *system_gdbinit,
 	    {
 	      homeinit = "";
 	    }
+      #ifdef WTOU_H
+       free((void*)homedir);
+      #endif
 	}
 
       if (stat (GDBINIT, &cwdbuf) == 0)
@@ -525,6 +548,7 @@ captured_main_1 (struct captured_main_args *context)
 #ifdef __MINGW32__
   /* Ensure stderr is unbuffered.  A Cygwin pty or pipe is implemented
      as a Windows pipe, and Windows buffers on pipes.  */
+  setvbuf (stdout, NULL, _IONBF, BUFSIZ);
   setvbuf (stderr, NULL, _IONBF, BUFSIZ);
 #endif
 
@@ -552,7 +576,15 @@ captured_main_1 (struct captured_main_args *context)
     (xstrprintf ("%s: warning: ", gdb_program_name));
   warning_pre_print = tmp_warn_preprint.get ();
 
+  #ifdef WTOU_H
+  {
+   wchar_t* wd = _wgetcwd (NULL, 0);
+   current_directory = wtou( wd );
+   free((void*)wd);
+  }
+  #else
   current_directory = getcwd (NULL, 0);
+  #endif
   if (current_directory == NULL)
     perror_warning_with_name (_("error finding working directory"));
 

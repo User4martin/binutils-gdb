@@ -45,7 +45,15 @@
 static void *
 dlopen (const char *file, int mode ATTRIBUTE_UNUSED)
 {
+#ifdef WTOU_H
+ void* r;
+ wchar_t* wf = utow(file);
+ r = LoadLibraryW (wf);
+ free((void*)wf);
+ return r;
+#else
   return LoadLibrary (file);
+#endif
 }
 
 static void *
@@ -402,7 +410,11 @@ load_plugin (bfd *abfd)
 	  struct stat st;
 	  DIR *d;
 
-	  if (stat (plugin_dir, &st) == 0
+     #ifdef WTOU_H
+	  if (ustat (plugin_dir, &st) == 0
+     #else
+      if (stat (plugin_dir, &st) == 0
+     #endif
 	      && S_ISDIR (st.st_mode)
 	      && !(last_st.st_dev == st.st_dev
 		   && last_st.st_ino == st.st_ino
@@ -418,7 +430,11 @@ load_plugin (bfd *abfd)
 		  char *full_name;
 
 		  full_name = concat (plugin_dir, "/", ent->d_name, NULL);
-		  if (stat (full_name, &st) == 0 && S_ISREG (st.st_mode))
+         #ifdef WTOU_H
+		  if (ustat (full_name, &st) == 0 && S_ISREG (st.st_mode))
+         #else
+          if (stat (full_name, &st) == 0 && S_ISREG (st.st_mode))
+         #endif
 		    {
 		      int valid_plugin;
 

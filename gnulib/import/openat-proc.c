@@ -36,6 +36,23 @@
 
 #include "intprops.h"
 
+#ifdef _WIN32
+#include <windows.h>
+int uaccess(const char *path,int mode)
+{
+ wchar_t* wp = NULL;
+ int size;
+ size = MultiByteToWideChar(CP_UTF8,0,path,-1,NULL,0);
+ if (size) {
+  wp = (wchar_t *) calloc(size,sizeof(wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,path,-1,wp,size);
+ }
+ int r = _waccess(wp,mode);
+ free((void*)wp);
+}
+#define access(path,mode) uaccess(path,mode)
+#endif
+
 /* Set BUF to the name of the subfile of the directory identified by
    FD, where the subfile is named FILE.  If successful, return BUF if
    the result fits in BUF, dynamically allocated memory otherwise.

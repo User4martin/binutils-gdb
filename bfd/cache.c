@@ -626,8 +626,11 @@ bfd_open_file (bfd *abfd)
 	     open file.  In fact, objdump does just that if invoked with
 	     the --info option.  */
 	  struct stat s;
-
+     #ifdef WTOU_H
+	  if (ustat (abfd->filename, &s) == 0 && s.st_size != 0)
+     #else
 	  if (stat (abfd->filename, &s) == 0 && s.st_size != 0)
+     #endif
 	    unlink_if_ordinary (abfd->filename);
 #endif
 	  abfd->iostream = _bfd_real_fopen (abfd->filename, FOPEN_WUB);

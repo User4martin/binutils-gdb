@@ -1853,7 +1853,11 @@ bfd_ar_hdr_from_filesystem (bfd *abfd, const char *filename, bfd *member)
       status.st_mode = 0644;
       status.st_size = bim->size;
     }
+#ifdef WTOU_H
+  else if (ustat (filename, &status) != 0)
+#else
   else if (stat (filename, &status) != 0)
+#endif
     {
       bfd_set_error (bfd_error_system_call);
       return NULL;
@@ -2477,7 +2481,11 @@ _bfd_bsd_write_armap (bfd *arch,
     {
       struct stat statbuf;
 
+#ifdef WTOU_H
+      if (ustat (arch->filename, &statbuf) == 0)
+#else
       if (stat (arch->filename, &statbuf) == 0)
+#endif
 	bfd_ardata (arch)->armap_timestamp = (statbuf.st_mtime
 					      + ARMAP_TIME_OFFSET);
       uid = getuid();

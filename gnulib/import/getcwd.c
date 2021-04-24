@@ -82,9 +82,17 @@
 #if !_LIBC
 # define __getcwd rpl_getcwd
 # define __lstat lstat
+#ifdef _WIN32
+#include <windows.h>
+# define __closedir _wclosedir
+# define __readdir  _wreaddir
+# define __rewinddir _wrewinddir
+ #else
 # define __closedir closedir
 # define __opendir opendir
 # define __readdir readdir
+# define __rewinddir rewinddir
+#endif
 #endif
 
 /* The results of opendir() in this file are not used with dirfd and fchdir,
@@ -100,6 +108,7 @@
 # undef closedir
 #endif
 
+
 /* Get the name of the current working directory, and put it in SIZE
    bytes of BUF.  Returns NULL if the directory couldn't be determined or
    SIZE was too small.  If successful, returns BUF.  In GNU, if BUF is
@@ -130,7 +139,11 @@ __getcwd (char *buf, size_t size)
   size_t dotsize = sizeof dots;
   size_t dotlen = 0;
 #endif
+#ifdef _WIN32
+  _WDIR *dirstream = NULL;
+#else
   DIR *dirstream = NULL;
+#endif
   dev_t rootdev, thisdev;
   ino_t rootino, thisino;
   char *dir;
@@ -214,6 +227,9 @@ __getcwd (char *buf, size_t size)
 
   while (!(thisdev == rootdev && thisino == rootino))
     {
+      #ifdef _WIN32
+       struct dirent tmp_d;
+      #endif
       struct dirent *d;
       dev_t dotdev;
       ino_t dotino;
@@ -238,7 +254,6 @@ __getcwd (char *buf, size_t size)
 #endif
       if (parent_status != 0)
         goto lose;
-
       if (dirstream && __closedir (dirstream) != 0)
         {
           dirstream = NULL;
@@ -257,7 +272,21 @@ __getcwd (char *buf, size_t size)
         goto lose;
       fd_needs_closing = false;
 #else
+  #ifdef _WIN32
+     {
+      int size;
+      wchar_t* wf = NULL;
+      size = MultiByteToWideChar(CP_UTF8,0,dotlist,-1,NULL,0);
+      if (size) {
+       wf = (wchar_t *) calloc(size,sizeof(wchar_t));
+       MultiByteToWideChar(CP_UTF8,0,dotlist,-1,wf,size);
+       }
+      dirstream = _wopendir (wf);
+      free ((void*)wf);
+     }
+  #else
       dirstream = __opendir (dotlist);
+  #endif
       if (dirstream == NULL)
         goto lose;
       dotlist[dotlen++] = '/';
@@ -267,7 +296,20 @@ __getcwd (char *buf, size_t size)
           /* Clear errno to distinguish EOF from error if readdir returns
              NULL.  */
           __set_errno (0);
+         #ifdef _WIN32
+          {
+           struct dirent *_wd;
+           _wd = _wreaddir (dirstream);
+           if (_wd) {
+            d = &tmp_d;
+            MultiByteToWideChar(CP_UTF8,0,_wd->d_name,sizeof(d->d_name),d->d_name,sizeof(d->d_name));
+           } else {
+            d = NULL;
+           }
+          }
+         #else
           d = __readdir (dirstream);
+         #endif
 
           /* When we've iterated through all directory entries without finding
              one with a matching d_ino, rewind the stream and consider each
@@ -279,7 +321,7 @@ __getcwd (char *buf, size_t size)
           if (d == NULL && errno == 0 && use_d_ino)
             {
               use_d_ino = false;
-              rewinddir (dirstream);
+              __rewinddir (dirstream);
               d = __readdir (dirstream);
             }
 

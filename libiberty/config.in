@@ -575,3 +575,9 @@
 
 /* Define as `fork' if `vfork' does not work. */
 #undef vfork
+
+#ifdef _WIN32
+#include "../gdb/wtou.h"
+#define open uopen3
+#endif
+

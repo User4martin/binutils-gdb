@@ -501,6 +501,149 @@ rl_read_key (void)
   return (c);
 }
 
+#if defined (__MINGW32__)
+#include <windows.h>
+
+int _ugetc(FILE * _file,char* ubuf)
+{
+ int fd = fileno (_file);
+ if (!isatty (fd)) 
+ {
+  DWORD L = 0;
+  ReadFile( (HANDLE) _get_osfhandle(fd),ubuf,1,&L,NULL);
+  if (!L) return (EOF);
+  return L;
+ }
+
+ HANDLE HI = (HANDLE) _get_osfhandle(fd);
+ HANDLE HO = GetStdHandle (STD_OUTPUT_HANDLE);
+ INPUT_RECORD wi;
+ DWORD L = 0;
+ while (1) {
+  ReadConsoleInputW(HI,&wi,1,&L);   
+  if (L == 0) return (WEOF);
+  if ((wi.EventType == KEY_EVENT) && (wi.Event.KeyEvent.bKeyDown))
+  {
+   if (wi.Event.KeyEvent.uChar.UnicodeChar == 0) {
+
+			switch (wi.Event.KeyEvent.wVirtualKeyCode) {
+                case VK_NUMPAD0: //1B 5B 32 7E
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x32;
+                  ubuf[3]=0x7E;
+                  return 4;
+                case VK_NUMPAD1: //1B 5B 46 
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x46;
+                  return 3;
+                case VK_NUMPAD2: //1B 5B 42
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x42;
+                  return 3;
+                case VK_NUMPAD3: //1B 5B 36 7E
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x36;
+                  ubuf[3]=0x7E;
+                  return 4;
+                case VK_NUMPAD4: //1B 5B 44
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x44;
+                  return 3;
+                case VK_NUMPAD5: //1B 5B 45
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x45;
+                  return 3;
+                case VK_NUMPAD6: //1B 5B 43
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x43;
+                  return 3;
+                case VK_NUMPAD7: //1B 5B 48
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x48;
+                  return 3;
+                case VK_NUMPAD8: //1B 5B 41
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x41;
+                  return 3;
+                case VK_NUMPAD9: //1B 5B 35 7E
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x35;
+                  ubuf[3]=0x7E;
+                  return 4;
+                case VK_DECIMAL: //1B 5B 33 7E
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x33;
+                  ubuf[3]=0x7E;
+                  return 4;
+                case VK_HOME  : //1B 5B 48
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x48;
+                  return 3;
+                case VK_END   : //1B 5B 46
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x46;
+                  return 3;
+                case VK_NEXT  : //1B 5B 35 7E (real char is crash)
+                case VK_UP    : //1B 5B 41
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x41;
+                  return 3;
+                case VK_LEFT  : //1B 5B 44
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x44;
+                  return 3;
+                case VK_RIGHT : //1B 5B 43
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x43;
+                  return 3;
+                case VK_PRIOR : //1B 5B 36 7E (real char is crash)
+                case VK_DOWN  : //1B 5B 42
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x42;
+                  return 3;
+                case VK_INSERT: //1B 5B 32 7E
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x32;
+                  ubuf[3]=0x7E;
+                  return 4;
+                case VK_DELETE: //1B 5B 33 7E
+                  ubuf[0]=0x1B;
+                  ubuf[1]=0x5B;
+                  ubuf[2]=0x33;
+                  ubuf[3]=0x7E;
+                  return 4;
+			}
+
+   } else {
+    int L = WideCharToMultiByte(CP_UTF8,0,&wi.Event.KeyEvent.uChar.UnicodeChar,1,NULL,0,NULL,NULL);
+    if (!L) return (EOF);
+    WideCharToMultiByte(CP_UTF8,0,&wi.Event.KeyEvent.uChar.UnicodeChar,1,(LPSTR) (ubuf),L,NULL,NULL);
+    return L;
+   }
+  }
+ }
+}
+
+#endif
+
 int
 rl_getc (FILE *stream)
 {
@@ -518,6 +661,29 @@ rl_getc (FILE *stream)
       /* We know at this point that _rl_caught_signal == 0 */
 
 #if defined (__MINGW32__)
+       if (rl_get_char (&result)) return (result);
+       char ubuf[4];
+       result = _ugetc(stream,&ubuf[0]);
+       if (result==EOF) return (EOF);
+       switch ( result ) {
+        case 1:
+          return (ubuf[0]);
+        case 2:
+          _rl_unget_char (ubuf[1]);
+          return (ubuf[0]);
+        case 3:
+          _rl_unget_char (ubuf[2]);
+          _rl_unget_char (ubuf[1]);
+          return (ubuf[0]);
+        case 4:
+          _rl_unget_char (ubuf[3]);
+          _rl_unget_char (ubuf[2]);
+          _rl_unget_char (ubuf[1]);
+          return (ubuf[0]);
+        default:
+         return (EOF);
+       }
+#else
       if (isatty (fileno (stream)))
 	return (_getch ());	/* "There is no error return." */
 #endif

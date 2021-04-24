@@ -32,10 +32,10 @@
 char *
 windows_get_absolute_argv0 (const char *argv0)
 {
-  char full_name[PATH_MAX];
+  wchar_t full_name[PATH_MAX];
 
-  if (GetModuleFileName (NULL, full_name, PATH_MAX))
-    return xstrdup (full_name);
+  if (GetModuleFileNameW (NULL, full_name, PATH_MAX))
+    return wtou (full_name);
   return xstrdup (argv0);
 }
 
@@ -215,7 +215,7 @@ static HANDLE hstdout = INVALID_HANDLE_VALUE;
 static SHORT  norm_attr;
 
 /* The most recently applied style.  */
-static ui_file_style last_style;
+static ui_file_style last_style;      
 
 /* Alternative for the libc 'fputs' which handles embedded SGR
    sequences in support of styling.  */
@@ -363,8 +363,27 @@ gdb_console_fputs (const char *linebuf, FILE *fstream)
 					      start_pos, &written);
 		}
 	    }
-	  fputc (c, fstream);
-	  n_read = 1;
+     #ifdef WTOU_H
+      if (isatty(fileno(fstream))) {
+       n_read = _utf8_char_len(linebuf);
+       wchar_t wr[2];
+       int size = MultiByteToWideChar(CP_UTF8,0,linebuf,n_read,NULL,0);
+       if (!size) {
+	    fputc (c, fstream);
+	    n_read = 1;
+       } else {
+        MultiByteToWideChar(CP_UTF8,0,linebuf,n_read,(LPWSTR)&wr,size);
+        DWORD L = 0;
+        WriteConsoleW(hstdout,(LPWSTR)&wr,size,&L,NULL);
+       }
+      } else {
+	   fputc (c, fstream);
+	   n_read = 1;
+      }
+     #else
+	   fputc (c, fstream);
+	   n_read = 1;
+     #endif
 	}
     }
 

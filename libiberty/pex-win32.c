@@ -44,6 +44,8 @@ Boston, MA 02110-1301, USA.  */
 #include <errno.h>
 #include <ctype.h>
 
+#include <../gdb/wtou.h>
+
 /* mingw32 headers may not define the following.  */
 
 #ifndef _P_WAIT
@@ -59,6 +61,7 @@ Boston, MA 02110-1301, USA.  */
 
 #define MINGW_NAME "Minimalist GNU for Windows"
 #define MINGW_NAME_LEN (sizeof(MINGW_NAME) - 1)
+
 
 extern char *stpcpy (char *dst, const char *src);
 
@@ -118,7 +121,11 @@ static int
 pex_win32_open_read (struct pex_obj *obj ATTRIBUTE_UNUSED, const char *name,
 		     int binary)
 {
-  return _open (name, _O_RDONLY | (binary ? _O_BINARY : _O_TEXT));
+ wchar_t* wf = utow (name);
+ int fd = _wopen (wf, _O_RDONLY | (binary ? _O_BINARY : _O_TEXT));
+ free ((void*)wf);
+ return fd;
+
 }
 
 /* Open a file for writing.  */
@@ -131,10 +138,13 @@ pex_win32_open_write (struct pex_obj *obj ATTRIBUTE_UNUSED, const char *name,
      created the temporary file via make_temp_file.  */
   if (append)
     return -1;
-  return _open (name,
-		(_O_WRONLY | _O_CREAT | _O_TRUNC
+ wchar_t* wf = utow (name);
+ int fd = _wopen (wf,
+         (_O_WRONLY | _O_CREAT | _O_TRUNC
 		 | (binary ? _O_BINARY : _O_TEXT)),
 		_S_IREAD | _S_IWRITE);
+ free ((void*)wf);
+ return fd;
 }
 
 /* Close a file.  */
@@ -430,13 +440,13 @@ argv_to_cmdline (char *const *argv)
    file that might be hanging around.  We try both extension
    and no extension so that we don't need any fancy logic
    to determine if a file has extension.  */
-static const char *const
+static const wchar_t *const
 std_suffixes[] = {
-  ".com",
-  ".exe",
-  ".bat",
-  ".cmd",
-  "",
+  L".com",
+  L".exe",
+  L".bat",
+  L".cmd",
+  L"",
   0
 };
 
@@ -446,70 +456,72 @@ std_suffixes[] = {
 static char *
 find_executable (const char *program, BOOL search)
 {
-  char *full_executable;
-  char *e;
+  wchar_t* wprogram = utow(program);
+
+  wchar_t *full_executable;
+  wchar_t *e;
   size_t fe_len;
-  const char *path = 0;
-  const char *const *ext;
-  const char *p, *q;
-  size_t proglen = strlen (program);
-  int has_slash = (strchr (program, '/') || strchr (program, '\\'));
+  const wchar_t *path = 0;
+  const wchar_t *const *ext;
+  const wchar_t *p, *q;
+  size_t proglen = wcslen (wprogram);
+  int has_slash = (wcschr (wprogram, L'/') || wcschr (wprogram, L'\\'));
   HANDLE h;
 
   if (has_slash)
     search = FALSE;
 
   if (search)
-    path = getenv ("PATH");
+    path = _wgetenv (L"PATH");
   if (!path)
-    path = "";
+    path = L"";
 
   fe_len = 0;
   for (p = path; *p; p = q)
     {
       q = p;
-      while (*q != ';' && *q != '\0')
+      while (*q != L';' && *q != L'\0')
 	q++;
-      if ((size_t)(q - p) > fe_len)
-	fe_len = q - p;
-      if (*q == ';')
+      if (((size_t)(q - p)/sizeof(wchar_t)) > fe_len)
+	   fe_len = (size_t)(q - p)/sizeof(wchar_t);
+      if (*q == L';')
 	q++;
     }
   fe_len = fe_len + 1 + proglen + 5 /* space for extension */;
-  full_executable = XNEWVEC (char, fe_len);
+  full_executable = XNEWVEC (wchar_t, fe_len);
 
   p = path;
   do
     {
       q = p;
-      while (*q != ';' && *q != '\0')
+      while (*q != L';' && *q != L'\0')
 	q++;
 
       e = full_executable;
-      memcpy (e, p, q - p);
+      memcpy (e, p, (q - p)*sizeof(wchar_t));
       e += (q - p);
       if (q - p)
-	*e++ = '\\';
-      strcpy (e, program);
+	*e++ = L'\\';
+      wcscpy (e, wprogram);
 
-      if (*q == ';')
+      if (*q == L';')
 	q++;
 
       for (e = full_executable; *e; e++)
-	if (*e == '/')
-	  *e = '\\';
+	if (*e == L'/')
+	  *e = L'\\';
 
       /* At this point, e points to the terminating NUL character for
          full_executable.  */
       for (ext = std_suffixes; *ext; ext++)
 	{
 	  /* Remove any current extension.  */
-	  *e = '\0';
+	  *e = L'\0';
 	  /* Add the new one.  */
-	  strcat (full_executable, *ext);
+	  wcscat (full_executable, *ext);
 
 	  /* Attempt to open this file.  */
-	  h = CreateFile (full_executable, GENERIC_READ,
+	  h = CreateFileW (full_executable, GENERIC_READ,
 			  FILE_SHARE_READ | FILE_SHARE_WRITE,
 			  0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	  if (h != INVALID_HANDLE_VALUE)
@@ -518,11 +530,13 @@ find_executable (const char *program, BOOL search)
       p = q;
     }
   while (*p);
+  free (wprogram);
   free (full_executable);
   return 0;
 
  found:
   CloseHandle (h);
+  free (wprogram);
   return full_executable;
 }
 
@@ -573,13 +587,13 @@ win32_spawn (const char *executable,
 	     char *const *argv,
              char *const *env, /* array of strings of the form: VAR=VALUE */
 	     DWORD dwCreationFlags,
-	     LPSTARTUPINFO si,
+	     LPSTARTUPINFOW si,
 	     LPPROCESS_INFORMATION pi)
 {
   char *full_executable;
   char *cmdline;
   char **env_copy;
-  char *env_block = NULL;
+  wchar_t *env_block = NULL;
 
   full_executable = NULL;
   cmdline = NULL;
@@ -599,7 +613,7 @@ win32_spawn (const char *executable,
         {
           int var;
           int total_size = 1; /* 1 is for the final null.  */
-          char *bufptr;
+          wchar_t *bufptr;
     
           /* Windows needs the members of the block to be sorted by variable
              name.  */
@@ -608,14 +622,17 @@ win32_spawn (const char *executable,
           qsort (env_copy, env_size, sizeof (char *), env_compare);
     
           for (var = 0; var < env_size; var++)
-            total_size += strlen (env[var]) + 1;
+            total_size += MultiByteToWideChar(CP_UTF8,0,env_copy[var],-1,NULL,0);
     
-          env_block = XNEWVEC (char, total_size);
+          env_block = XNEWVEC (wchar_t, total_size+1);
           bufptr = env_block;
           for (var = 0; var < env_size; var++)
-            bufptr = stpcpy (bufptr, env_copy[var]) + 1;
-    
-          *bufptr = '\0';
+          {
+            int size = MultiByteToWideChar(CP_UTF8,0,env_copy[var],-1,NULL,0);
+            MultiByteToWideChar(CP_UTF8,0,env_copy[var],-1,bufptr,size);
+            bufptr += size;
+          }
+          *bufptr = L'\0';
         }
     }
 
@@ -625,28 +642,34 @@ win32_spawn (const char *executable,
   cmdline = argv_to_cmdline (argv);
   if (!cmdline)
     goto error;
-    
+  
+  wchar_t* wfull_executable = utow(full_executable);
+  wchar_t* wcmdline = utow(cmdline);
+
+  free (cmdline);
+  free (full_executable);
+
   /* Create the child process.  */  
-  if (!CreateProcess (full_executable, cmdline, 
+  if (!CreateProcessW (wfull_executable, wcmdline, 
 		      /*lpProcessAttributes=*/NULL,
 		      /*lpThreadAttributes=*/NULL,
 		      /*bInheritHandles=*/TRUE,
-		      dwCreationFlags,
+		      dwCreationFlags || CREATE_UNICODE_ENVIRONMENT,
 		      (LPVOID) env_block,
 		      /*lpCurrentDirectory=*/NULL,
 		      si,
 		      pi))
     {
-      free (env_block);
-
-      free (full_executable);
-
+      
+      free (wcmdline);
+      free (wfull_executable);
       return (pid_t) -1;
     }
 
   /* Clean up.  */
   CloseHandle (pi->hThread);
-  free (full_executable);
+  free (wcmdline);
+  free (wfull_executable);
   free (env_block);
 
   return (pid_t) pi->hProcess;
@@ -666,12 +689,15 @@ static pid_t
 spawn_script (const char *executable, char *const *argv,
               char* const *env,
 	      DWORD dwCreationFlags,
-	      LPSTARTUPINFO si,
+	      LPSTARTUPINFOW si,
 	      LPPROCESS_INFORMATION pi)
 {
   pid_t pid = (pid_t) -1;
   int save_errno = errno;
-  int fd = _open (executable, _O_RDONLY);
+
+  wchar_t* wf = utow (executable);
+  int fd = _wopen (wf, _O_RDONLY);
+  free ((void*)wf);
 
   /* Try to open script, check header format, extract interpreter path,
      and spawn script using that interpretter. */
@@ -769,7 +795,7 @@ pex_win32_exec_child (struct pex_obj *obj ATTRIBUTE_UNUSED, int flags,
   HANDLE stderr_handle;
   DWORD dwCreationFlags;
   OSVERSIONINFO version_info;
-  STARTUPINFO si;
+  STARTUPINFOW si;
   PROCESS_INFORMATION pi;
   int orig_out, orig_in, orig_err;
   BOOL separate_stderr = !(flags & PEX_STDERR_TO_STDOUT);
@@ -810,7 +836,7 @@ pex_win32_exec_child (struct pex_obj *obj ATTRIBUTE_UNUSED, int flags,
       HANDLE conout_handle;
 
       /* Determine whether or not we have an associated console.  */
-      conout_handle = CreateFile("CONOUT$", 
+      conout_handle = CreateFileW(L"CONOUT$", 
 				 GENERIC_WRITE,
 				 FILE_SHARE_WRITE,
 				 /*lpSecurityAttributes=*/NULL,

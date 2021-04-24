@@ -299,4 +299,10 @@
 #  define TERMIOS_MISSING
 #endif
 
+#ifdef _WIN32
+#include "../../gdb/wtou.h"
+#define opendir(Dir) uopendir(Dir)
+#define open uopen3
+#endif
+
 /* VARARGS defines moved to rlstdc.h */

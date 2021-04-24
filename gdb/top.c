@@ -843,8 +843,12 @@ gdb_readline_no_editing (const char *prompt)
 	  perror_with_name (("select"));
 	}
 
+    #ifdef _WIN32
+      char ubuf[4];
+      c = _ufgetc(stream,&ubuf[0]);
+    #else
       c = fgetc (stream);
-
+    #endif
       if (c == EOF)
 	{
 	  if (line_buffer.used_size > 0)
@@ -856,7 +860,18 @@ gdb_readline_no_editing (const char *prompt)
 	  return NULL;
 	}
 
+    #ifdef _WIN32
+     if (c == 1 && ubuf[0] == 8 && line_buffer.used_size > 0) {
+      line_buffer.used_size--;
+      continue;
+     }
+    #endif
+
+    #ifdef _WIN32
+      if (c == 1 && ubuf[0] == '\n')
+    #else
       if (c == '\n')
+    #endif
 	{
 	  if (line_buffer.used_size > 0
 	      && line_buffer.buffer[line_buffer.used_size - 1] == '\r')
@@ -864,7 +879,13 @@ gdb_readline_no_editing (const char *prompt)
 	  break;
 	}
 
-      buffer_grow_char (&line_buffer, c);
+    #ifdef _WIN32
+       for (int i = 0; i < c; i++ ) {
+         buffer_grow_char (&line_buffer, ubuf[i]);
+       }
+    #else
+     buffer_grow_char (&line_buffer, c);
+    #endif
     }
 
   buffer_grow_char (&line_buffer, '\0');
@@ -1186,8 +1207,12 @@ gdb_safe_append_history (void)
 
   std::string local_history_filename
     = string_printf ("%s-gdb%ld~", history_filename, (long) getpid ());
-
+  
+ #ifdef WTOU_H
+  ret = urename (history_filename, local_history_filename.c_str ());
+ #else
   ret = rename (history_filename, local_history_filename.c_str ());
+ #endif
   saved_errno = errno;
   if (ret < 0 && saved_errno != ENOENT)
     {
@@ -1395,6 +1420,9 @@ There is NO WARRANTY, to the extent permitted by law.");
     {
       fprintf_filtered (stream, "%s", host_name);
     }
+  #ifdef _WIN32
+   fprintf_filtered (stream, "-not_cygwin");
+  #endif
   fprintf_filtered (stream, "\".\n");
 
   fprintf_filtered (stream, _("Type \"show configuration\" "
@@ -1984,6 +2012,9 @@ init_history (void)
 	history_size_setshow_var = -1;
       else
 	history_size_setshow_var = var;
+      #ifdef WTOU_H
+       free((void*)tmpenv);
+      #endif
     }
 
   /* If neither the init file nor GDBHISTSIZE has set a size yet, pick the
@@ -1994,9 +2025,12 @@ init_history (void)
   set_readline_history_size (history_size_setshow_var);
 
   tmpenv = getenv ("GDBHISTFILE");
-  if (tmpenv)
+  if (tmpenv) {
     history_filename = xstrdup (tmpenv);
-  else if (!history_filename)
+      #ifdef WTOU_H
+       free((void*)tmpenv);
+      #endif
+  } else if (!history_filename)
     {
       /* We include the current directory so that if the user changes
          directories the file written will be the same as the one

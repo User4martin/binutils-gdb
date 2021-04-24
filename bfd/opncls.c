@@ -709,7 +709,11 @@ _maybe_make_executable (bfd * abfd)
     {
       struct stat buf;
 
+     #ifdef WTOU_H
+      if (ustat (abfd->filename, &buf) == 0
+     #else 
       if (stat (abfd->filename, &buf) == 0
+     #endif
 	  /* Do not attempt to change non-regular files.  This is
 	     here especially for configure scripts and kernel builds
 	     which run tests with "ld [...] -o /dev/null".  */
@@ -718,9 +722,15 @@ _maybe_make_executable (bfd * abfd)
 	  unsigned int mask = umask (0);
 
 	  umask (mask);
+     #ifdef WTOU_H
+	  uchmod (abfd->filename,
+		 (0777
+		  & (buf.st_mode | ((S_IXUSR | S_IXGRP | S_IXOTH) &~ mask))));
+     #else
 	  chmod (abfd->filename,
 		 (0777
 		  & (buf.st_mode | ((S_IXUSR | S_IXGRP | S_IXOTH) &~ mask))));
+     #endif
 	}
     }
 }

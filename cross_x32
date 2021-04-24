@@ -1,0 +1,12 @@
+#!/bin/sh
+
+mkdir build_x32
+cd build_x32
+./../configure --enable-static=yes --disable-gprof --disable-binutils --disable-gas --disable-gold --disable-texinfo --disable-gdbserver --target=i686-w64-mingw32 --host=i686-w64-mingw32
+
+echo "Press enter to continue"
+read _
+
+make all LDFLAGS=-static
+
+strip ./gdb/gdb.exe

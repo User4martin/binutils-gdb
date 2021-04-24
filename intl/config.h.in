@@ -278,3 +278,9 @@
 /* Define to unsigned long or unsigned long long if <stdint.h> and
    <inttypes.h> don't define. */
 #undef uintmax_t
+
+#ifdef _WIN32
+#include "../gdb/wtou.h"
+#define open uopen2
+#endif
+

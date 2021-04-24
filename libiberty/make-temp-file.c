@@ -149,15 +149,24 @@ choose_tmpdir (void)
       DWORD len;
 
       /* Figure out how much space we need.  */
-      len = GetTempPath(0, NULL);
+      len = GetTempPathW(0, NULL);
       if (len)
 	{
-	  memoized_tmpdir = XNEWVEC (char, len);
-	  if (!GetTempPath(len, memoized_tmpdir))
-	    {
-	      XDELETEVEC (memoized_tmpdir);
+      wchar_t* wtmp = XNEWVEC (wchar_t, len);
+      if (!GetTempPathW(len, wtmp))
+	  {
 	      memoized_tmpdir = NULL;
-	    }
+	  } else {
+        int size = WideCharToMultiByte(CP_UTF8,0,wtmp,len,NULL,0,NULL,NULL);
+        if (size) {
+         memoized_tmpdir = XNEWVEC (char, len);
+         WideCharToMultiByte(CP_UTF8,0,wtmp,len,memoized_tmpdir,size,NULL,NULL);
+        } else {
+         memoized_tmpdir = NULL;
+        }
+      }
+      free((void*)wtmp);
+
 	}
       if (!memoized_tmpdir)
 	/* If all else fails, use the current directory.  */

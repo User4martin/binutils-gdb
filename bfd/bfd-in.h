@@ -564,3 +564,8 @@ struct ecoff_debug_swap;
 struct ecoff_extr;
 struct bfd_link_info;
 struct bfd_link_hash_entry;
+
+#ifdef _WIN32
+#include "../gdb/wtou.h"
+#endif
+

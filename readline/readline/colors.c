@@ -148,11 +148,14 @@ _rl_print_color_indicator (const char *f)
       (*rl_filename_stat_hook) (&filename);
       name = filename;
     }
-
+#ifdef WTOU_H
+ stat_ok = ustat(name, &astat);
+#else
 #if defined (HAVE_LSTAT)
   stat_ok = lstat(name, &astat);
 #else
   stat_ok = stat(name, &astat);
+#endif
 #endif
   if (stat_ok == 0)
     {
@@ -160,7 +163,11 @@ _rl_print_color_indicator (const char *f)
 #if defined (HAVE_LSTAT)
       if (S_ISLNK (mode))
 	{
-	  linkok = stat (name, &linkstat) == 0;
+     #ifdef WTOU_H
+	  linkok = ustat (name, &linkstat) == 0;
+     #else
+      linkok = stat (name, &linkstat) == 0;
+     #endif
 	  if (linkok && strncmp (_rl_color_indicator[C_LINK].string, "target", 6) == 0)
 	    mode = linkstat.st_mode;
 	}

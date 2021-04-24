@@ -504,8 +504,13 @@ Use `set gnutarget auto' to specify automatic detection."),
 
   add_alias_cmd ("g", "gnutarget", class_files, 1, &setlist);
 
-  if (getenv ("GNUTARGET"))
-    set_gnutarget (getenv ("GNUTARGET"));
+  char* gt = getenv ("GNUTARGET");
+  if (gt)
+    set_gnutarget (gt);
   else
     set_gnutarget ("auto");
+
+ #ifdef WTOU_H
+  free(gt);
+ #endif
 }

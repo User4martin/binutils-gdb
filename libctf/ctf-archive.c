@@ -371,7 +371,7 @@ ctf_arc_open_internal (const char *filename, int *errp)
   struct ctf_archive *arc;		/* (Actually the whole file.)  */
 
   libctf_init_debug();
-  if ((fd = open (filename, O_RDONLY)) < 0)
+  if ((fd = open (filename, O_RDONLY, 0)) < 0)
     {
       errmsg = "ctf_arc_open(): cannot open %s: %s\n";
       goto err;

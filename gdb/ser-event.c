@@ -82,7 +82,7 @@ serial_event_open (struct serial *scb, const char *name)
 
     /* The dummy file handle.  Created just so we have something
        wrappable in a file descriptor.  */
-    dummy_file = CreateFile ("nul", 0, 0, NULL, OPEN_EXISTING, 0, NULL);
+    dummy_file = CreateFileW (L"nul", 0, 0, NULL, OPEN_EXISTING, 0, NULL);
     scb->fd = _open_osfhandle ((intptr_t) dummy_file, 0);
   }
 #endif

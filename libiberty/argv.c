@@ -408,7 +408,11 @@ expandargv (int *argcp, char ***argvp)
 	  xexit (1);
 	}
 #ifdef S_ISDIR
+     #ifdef WTOU_H
+      if (ustat (filename+1, &sb) < 0)
+     #else
       if (stat (filename+1, &sb) < 0)
+     #endif
 	continue;
       if (S_ISDIR(sb.st_mode))
 	{

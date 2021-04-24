@@ -139,18 +139,32 @@ lrealpath (const char *filename)
      It also converts all forward slashes to back slashes.  */
 #if defined (_WIN32)
   {
-    char buf[MAX_PATH];
-    char* basename;
-    DWORD len = GetFullPathName (filename, MAX_PATH, buf, &basename);
-    if (len == 0 || len > MAX_PATH - 1)
+    wchar_t buf[MAX_PATH];
+    wchar_t* basename;
+    wchar_t* wfilename;
+    int size;
+    size = MultiByteToWideChar(CP_UTF8,0,filename,-1,NULL,0);
+    if (size) {
+     wfilename = (wchar_t *) calloc(size,sizeof(wchar_t));
+     MultiByteToWideChar(CP_UTF8,0,filename,-1,wfilename,size);
+    }
+    DWORD len = GetFullPathNameW (wfilename, MAX_PATH, buf, &basename);
+    free((void*)wfilename);
+    if (len == 0 || len > MAX_PATH - 1) 
+    {
       return strdup (filename);
-    else
+    } else
       {
 	/* The file system is case-preserving but case-insensitive,
 	   Canonicalize to lowercase, using the codepage associated
 	   with the process locale.  */
-        CharLowerBuff (buf, len);
-        return strdup (buf);
+        CharLowerBuffW (buf, len);
+        char* r = NULL;
+        size = WideCharToMultiByte(CP_UTF8,0,buf,len,NULL,0,NULL,NULL);
+        if (!size) return NULL;
+        r = (char *) calloc(size,sizeof(char));
+        WideCharToMultiByte(CP_UTF8,0,buf,len,r,size,NULL,NULL);
+        return r;
       }
   }
 #endif

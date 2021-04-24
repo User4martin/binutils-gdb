@@ -122,12 +122,12 @@ static GetConsoleFontSize_ftype *GetConsoleFontSize;
 
 #ifndef __CYGWIN__
 # define __PMAX	(MAX_PATH + 1)
-  typedef DWORD WINAPI (GetModuleFileNameEx_ftype) (HANDLE, HMODULE, LPSTR, DWORD);
+  typedef DWORD WINAPI (GetModuleFileNameEx_ftype) (HANDLE, HMODULE, LPWSTR, DWORD);
   static GetModuleFileNameEx_ftype *GetModuleFileNameEx;
 # define STARTUPINFO STARTUPINFOA
 # define CreateProcess CreateProcessA
-# define GetModuleFileNameEx_name "GetModuleFileNameExA"
-# define bad_GetModuleFileNameEx bad_GetModuleFileNameExA
+# define GetModuleFileNameEx_name "GetModuleFileNameExW"
+# define bad_GetModuleFileNameEx bad_GetModuleFileNameExW
 #else
 # define __PMAX	PATH_MAX
 /* The starting and ending address of the cygwin1.dll text segment.  */
@@ -687,33 +687,36 @@ static struct so_list *
 windows_make_so (const char *name, LPVOID load_addr)
 {
   struct so_list *so;
-  char *p;
+  wchar_t *p;
 #ifndef __CYGWIN__
-  char buf[__PMAX];
-  char cwd[__PMAX];
-  WIN32_FIND_DATA w32_fd;
-  HANDLE h = FindFirstFile(name, &w32_fd);
+  wchar_t buf[__PMAX];
+  wchar_t cwd[__PMAX];
+  WIN32_FIND_DATAW w32_fd;
+  wchar_t* wname = utow(name);
+  HANDLE h = FindFirstFileW(wname, &w32_fd);
 
-  if (h == INVALID_HANDLE_VALUE)
-    strcpy (buf, name);
-  else
+  if (h == INVALID_HANDLE_VALUE) {
+    wcscpy (buf, wname);
+    free((void*)wname);
+  } else
     {
       FindClose (h);
-      strcpy (buf, name);
-      if (GetCurrentDirectory (MAX_PATH + 1, cwd))
+      wcscpy (buf, wname);
+      free((void*)wname);
+      if (GetCurrentDirectoryW (MAX_PATH + 1, cwd))
 	{
-	  p = strrchr (buf, '\\');
+	  p = wcsrchr (buf, L'\\');
 	  if (p)
 	    p[1] = '\0';
-	  SetCurrentDirectory (buf);
-	  GetFullPathName (w32_fd.cFileName, MAX_PATH, buf, &p);
-	  SetCurrentDirectory (cwd);
+	  SetCurrentDirectoryW (buf);
+	  GetFullPathNameW (w32_fd.cFileName, MAX_PATH, buf, &p);
+	  SetCurrentDirectoryW (cwd);
 	}
     }
-  if (strcasecmp (buf, "ntdll.dll") == 0)
+  if (wcscmp (buf, L"ntdll.dll") == 0)
     {
-      GetSystemDirectory (buf, sizeof (buf));
-      strcat (buf, "\\ntdll.dll");
+      GetSystemDirectoryW (buf, sizeof (buf));
+      wcscat (buf, L"\\ntdll.dll");
     }
 #else
   cygwin_buf_t buf[__PMAX];
@@ -741,7 +744,9 @@ windows_make_so (const char *name, LPVOID load_addr)
   li->load_addr = load_addr;
   strcpy (so->so_original_name, name);
 #ifndef __CYGWIN__
-  strcpy (so->so_name, buf);
+  char* sn = wtou(buf);
+  strcpy (so->so_name, sn);
+  free((void*)sn);
 #else
   if (buf[0])
     cygwin_conv_path (CCP_WIN_W_TO_POSIX, buf, so->so_name,
@@ -792,7 +797,7 @@ get_image_name (HANDLE h, void *address, int unicode)
 #ifdef __CYGWIN__
   static char buf[__PMAX];
 #else
-  static char buf[(2 * __PMAX) + 1];
+  static char buf[(4 * __PMAX) + 1];
 #endif
   DWORD size = unicode ? sizeof (WCHAR) : sizeof (char);
   char *address_ptr;
@@ -828,7 +833,7 @@ get_image_name (HANDLE h, void *address, int unicode)
 #ifdef __CYGWIN__
       wcstombs (buf, unicode_address, __PMAX);
 #else
-      WideCharToMultiByte (CP_ACP, 0, unicode_address, len, buf, sizeof buf,
+      WideCharToMultiByte (CP_UTF8, 0, unicode_address, len, buf, sizeof buf,
 			   0, 0);
 #endif
     }
@@ -1800,7 +1805,7 @@ windows_add_all_dlls (void)
   for (i = 1; i < (int) (cb_needed / sizeof (HMODULE)); i++)
     {
       MODULEINFO mi;
-#ifdef __USEWIDE
+#if defined(__USEWIDE) || defined(_WIN32)
       wchar_t dll_name[__PMAX];
       char name[__PMAX];
 #else
@@ -1816,7 +1821,11 @@ windows_add_all_dlls (void)
 #ifdef __USEWIDE
       wcstombs (name, dll_name, __PMAX);
 #else
+  #ifdef __CYGWIN__
       name = dll_name;
+  #else
+      WideCharToMultiByte(CP_UTF8,0,dll_name,-1,name,__PMAX,NULL,NULL);
+  #endif
 #endif
 
       solib_end->next = windows_make_so (name, mi.lpBaseOfDll);
@@ -2078,8 +2087,11 @@ windows_get_exec_module_filename (char *exe_name_ret, size_t exe_name_max_len)
       error (_("Error converting executable filename to POSIX: %d."), errno);
   }
 #else
+  wchar_t* pathbuf = (wchar_t *) calloc(exe_name_max_len,sizeof(wchar_t));
   len = GetModuleFileNameEx (current_process_handle,
-			     dh_buf, exe_name_ret, exe_name_max_len);
+			     dh_buf, pathbuf, exe_name_max_len);
+  len = WideCharToMultiByte(CP_UTF8,0,pathbuf,-1,exe_name_ret,exe_name_max_len,NULL,NULL);
+  free((void*)pathbuf);
   if (len == 0)
     error (_("Error getting executable filename: %u."),
 	   (unsigned) GetLastError ());
@@ -2142,9 +2154,9 @@ windows_nat_target::files_info ()
    by CreateProcess function.  */
 
 static void
-windows_set_console_info (STARTUPINFO *si, DWORD *flags)
+windows_set_console_info (STARTUPINFOW *si, DWORD *flags)
 {
-  HANDLE hconsole = CreateFile ("CONOUT$", GENERIC_READ | GENERIC_WRITE,
+  HANDLE hconsole = CreateFileW (L"CONOUT$", GENERIC_READ | GENERIC_WRITE,
 				FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
 
   if (hconsole != INVALID_HANDLE_VALUE)
@@ -2357,7 +2369,7 @@ redir_open (const char *redir_string, int *inp, int *out, int *err)
     _close (*fd);
   if (ref_fd == -2)
     {
-      *fd = _open (fname, mode, _S_IREAD | _S_IWRITE);
+      *fd = open (fname, mode, _S_IREAD | _S_IWRITE);
       if (*fd < 0)
 	return -1;
     }
@@ -2512,7 +2524,7 @@ windows_nat_target::create_inferior (const char *exec_file,
 				     const std::string &origallargs,
 				     char **in_env, int from_tty)
 {
-  STARTUPINFO si;
+  STARTUPINFOW si;
 #ifdef __CYGWIN__
   cygwin_buf_t real_path[__PMAX];
   cygwin_buf_t shell[__PMAX]; /* Path to shell */
@@ -2534,8 +2546,8 @@ windows_nat_target::create_inferior (const char *exec_file,
   int fd_inp = -1, fd_out = -1, fd_err = -1;
   HANDLE tty = INVALID_HANDLE_VALUE;
   bool redirected = false;
-  char *w32env;
-  char *temp;
+  wchar_t *w32env;
+  wchar_t *temp;
   size_t envlen;
   int i;
   size_t envsize;
@@ -2724,8 +2736,10 @@ windows_nat_target::create_inferior (const char *exec_file,
       sa.nLength = sizeof(sa);
       sa.lpSecurityDescriptor = 0;
       sa.bInheritHandle = TRUE;
-      tty = CreateFileA (inferior_io_terminal, GENERIC_READ | GENERIC_WRITE,
+      wchar_t* wi = utow(inferior_io_terminal);
+      tty = CreateFileW (wi, GENERIC_READ | GENERIC_WRITE,
 			 0, &sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+      free((void*)wi);
       if (tty == INVALID_HANDLE_VALUE)
 	warning (_("Warning: Failed to open TTY %s, error %#x."),
 		 inferior_io_terminal, (unsigned) GetLastError ());
@@ -2762,14 +2776,14 @@ windows_nat_target::create_inferior (const char *exec_file,
   args = (char *) alloca (args_len);
   xsnprintf (args, args_len, "\"%s\" %s", toexec, allargs_copy);
 
-  flags |= DEBUG_ONLY_THIS_PROCESS;
+  flags |= DEBUG_ONLY_THIS_PROCESS | CREATE_UNICODE_ENVIRONMENT;
 
   /* CreateProcess takes the environment list as a null terminated set of
      strings (i.e. two nulls terminate the list).  */
 
   /* Get total size for env strings.  */
   for (envlen = 0, i = 0; in_env[i] && *in_env[i]; i++)
-    envlen += strlen (in_env[i]) + 1;
+    envlen += MultiByteToWideChar(CP_UTF8,0,in_env[i],-1,NULL,0);
 
   envsize = sizeof (in_env[0]) * (i + 1);
   env = (char **) alloca (envsize);
@@ -2777,27 +2791,30 @@ windows_nat_target::create_inferior (const char *exec_file,
   /* Windows programs expect the environment block to be sorted.  */
   qsort (env, i, sizeof (char *), envvar_cmp);
 
-  w32env = (char *) alloca (envlen + 1);
+  w32env = (wchar_t *) alloca ((envlen + 1)*sizeof(wchar_t));
 
   /* Copy env strings into new buffer.  */
   for (temp = w32env, i = 0; env[i] && *env[i]; i++)
     {
-      strcpy (temp, env[i]);
-      temp += strlen (temp) + 1;
+     int size = MultiByteToWideChar(CP_UTF8,0,env[i],-1,NULL,0);
+     MultiByteToWideChar(CP_UTF8,0,env[i],-1,temp,size);
+     temp += size;
     }
 
   /* Final nil string to terminate new env.  */
   *temp = 0;
+  wchar_t* wargs = utow(args);
+  wchar_t* winferior_cwd = utow(inferior_cwd);
 
   windows_init_thread_list ();
-  ret = CreateProcessA (0,
-			args,	/* command line */
+  ret = CreateProcessW (0,
+			wargs,	/* command line */
 			NULL,	/* Security */
 			NULL,	/* thread */
 			TRUE,	/* inherit handles */
 			flags,	/* start flags */
 			w32env,	/* environment */
-			inferior_cwd, /* current directory */
+			winferior_cwd, /* current directory */
 			&si,
 			&pi);
   if (tty != INVALID_HANDLE_VALUE)
@@ -2808,6 +2825,10 @@ windows_nat_target::create_inferior (const char *exec_file,
     _close (fd_out);
   if (fd_err >= 0)
     _close (fd_err);
+
+  free(wargs);
+  free(winferior_cwd);
+
 #endif	/* !__CYGWIN__ */
 
   if (!ret)
@@ -3200,13 +3221,20 @@ _initialize_check_for_gdb_ini (void)
   if (inhibit_gdbinit)
     return;
 
-  homedir = getenv ("HOME");
+   #ifdef _WIN32
+    homedir = getenv ("USERPROFILE");
+   #else
+    homedir = getenv ("HOME");
+   #endif
   if (homedir)
     {
       char *p;
       char *oldini = (char *) alloca (strlen (homedir) +
 				      sizeof ("gdb.ini") + 1);
       strcpy (oldini, homedir);
+      #ifdef WTOU_H
+       free(homedir);
+      #endif
       p = strchr (oldini, '\0');
       if (p > oldini && !IS_DIR_SEPARATOR (p[-1]))
 	*p++ = '/';
@@ -3246,7 +3274,7 @@ bad_EnumProcessModules (HANDLE w, HMODULE *x, DWORD y, LPDWORD z)
   return FALSE;
 }
 
-#ifdef __USEWIDE
+#if defined(__USEWIDE) || defined(_WIN32)
 static DWORD WINAPI
 bad_GetModuleFileNameExW (HANDLE w, HMODULE x, LPWSTR y, DWORD z)
 {
@@ -3286,7 +3314,7 @@ bad_GetConsoleFontSize (HANDLE w, DWORD nFont)
   size.Y = 12;
   return size;
 }
- 
+
 /* Load any functions which may not be available in ancient versions
    of Windows.  */
 

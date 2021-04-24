@@ -47,6 +47,22 @@
 
 /* This function is required at least for NetBSD 1.5.2.  */
 
+#ifdef _WIN32
+#include <windows.h>
+int umkdir(const char *dirname)
+{
+ wchar_t* wp = NULL;
+ int size;
+ size = MultiByteToWideChar(CP_UTF8,0,dirname,-1,NULL,0);
+ if (size) {
+  wp = (wchar_t *) calloc(size,sizeof(wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,dirname,-1,wp,size);
+ }
+ int r = _wmkdir(wp);
+ free((void*)wp);
+}
+#endif
+
 int
 rpl_mkdir (char const *dir, mode_t mode maybe_unused)
 {
@@ -84,7 +100,11 @@ rpl_mkdir (char const *dir, mode_t mode maybe_unused)
   }
 #endif /* FUNC_MKDIR_DOT_BUG */
 
-  ret_val = mkdir (tmp_dir, mode);
+  #ifdef _WIN32
+   ret_val = umkdir (tmp_dir);
+  #else
+   ret_val = mkdir (tmp_dir, mode);
+  #endif
 
   if (tmp_dir != dir)
     free (tmp_dir);

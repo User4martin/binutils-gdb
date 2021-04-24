@@ -1554,9 +1554,14 @@ decode_line_2 (struct linespec_state *self,
   prompt = getenv ("PS2");
   if (prompt == NULL)
     {
-      prompt = "> ";
-    }
-  args = command_line_input (prompt, "overload-choice");
+      args = command_line_input ("> ", "overload-choice");
+    } else {
+      args = command_line_input (prompt, "overload-choice");
+    };
+
+    #ifdef WTOU_H
+     free((void*)prompt);
+    #endif
 
   if (args == 0 || *args == 0)
     error_no_arg (_("one or more choice numbers"));

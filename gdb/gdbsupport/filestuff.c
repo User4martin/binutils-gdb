@@ -45,6 +45,10 @@
 #include <sys/resource.h>
 #endif /* HAVE_SYS_RESOURCE_H */
 
+#ifdef _WIN32
+#include "wtou.h"
+#endif 
+
 #ifndef O_CLOEXEC
 #define O_CLOEXEC 0
 #endif
@@ -309,6 +313,7 @@ socket_mark_cloexec (int fd)
 int
 gdb_open_cloexec (const char *filename, int flags, unsigned long mode)
 {
+
   int fd = open (filename, flags | O_CLOEXEC, mode);
 
   if (fd >= 0)

@@ -32,6 +32,13 @@
 #include "dosname.h"
 #include "filenamecat.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include "assure.h"
+
+
 #ifndef REPLACE_OPEN_DIRECTORY
 # define REPLACE_OPEN_DIRECTORY 0
 #endif
@@ -197,12 +204,24 @@ _gl_directory_name (int fd)
   return NULL;
 }
 
-
 /* Implement fchdir() in terms of chdir().  */
 
 int
 fchdir (int fd)
 {
   const char *name = _gl_directory_name (fd);
-  return name ? chdir (name) : -1;
+  #ifdef _WIN32
+   int size;
+   wchar_t* wname = NULL;
+   size = MultiByteToWideChar(CP_UTF8,0,name,-1,NULL,0);
+   if (size) {
+    wname = (wchar_t *) calloc(size,sizeof(wchar_t));
+    MultiByteToWideChar(CP_UTF8,0,name,-1,wname,size);
+   }
+   int r = wname ? _wchdir (wname) : -1;
+   free((void*)wname);
+   return r;
+  #else
+   return name ? chdir (name) : -1;
+  #endif
 }

@@ -69,6 +69,10 @@ extern int errno;
 
 #include <locale.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifdef _LIBC
   /* Guess whether integer division by zero raises signal SIGFPE.
      Set to 1 only if you know for sure.  In case of doubt, set to 0.  */
@@ -546,7 +550,17 @@ DCIGETTEXT (domainname, msgid1, msgid2, plural, n, category)
 	  ADD_BLOCK (block_list, dirname);
 
 	  __set_errno (0);
-	  ret = getcwd (dirname, path_max);
+     #ifdef _WIN32
+      wchar_t* wdirname = (wchar_t *) alloca ((path_max+1)*sizeof(wchar_t));
+      if (_wgetcwd (wdirname, path_max)==NULL) {
+       ret = NULL;
+      } else {
+       WideCharToMultiByte(CP_UTF8,0,wdirname,path_max,dirname,path_max,NULL,NULL);
+       ret = &dirname;
+      }
+     #else
+      ret = getcwd (dirname, path_max);
+     #endif
 	  if (ret != NULL || errno != ERANGE)
 	    break;
 
