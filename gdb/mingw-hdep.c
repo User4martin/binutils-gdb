@@ -369,7 +369,9 @@ gdb_console_fputs (const char *linebuf, FILE *fstream)
        wchar_t wr[2];
        int size = MultiByteToWideChar(CP_UTF8,0,linebuf,n_read,NULL,0);
        if (!size) {
-	    fputc (c, fstream);
+        DWORD L = 0;
+        wchar_t tmp = L'?';
+        WriteConsoleW(hstdout,&tmp,1,&L,NULL);
 	    n_read = 1;
        } else {
         MultiByteToWideChar(CP_UTF8,0,linebuf,n_read,(LPWSTR)&wr,size);
@@ -377,7 +379,8 @@ gdb_console_fputs (const char *linebuf, FILE *fstream)
         WriteConsoleW(hstdout,(LPWSTR)&wr,size,&L,NULL);
        }
       } else {
-	   fputc (c, fstream);
+       DWORD L = 0;
+       WriteFile(hstdout,linebuf,1,&L,NULL);
 	   n_read = 1;
       }
      #else

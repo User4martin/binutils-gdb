@@ -30,9 +30,32 @@ wchar_t* utow(const char* v)
  return r;
 }
 
+char* atou(const char* v)
+{
+ int size;
+ wchar_t* w = NULL;
+ size = MultiByteToWideChar(CP_ACP,0,v,-1,NULL,0);
+ if (size) {
+  w = (wchar_t *) calloc(size,sizeof(wchar_t));
+  MultiByteToWideChar(CP_ACP,0,v,-1,w,size);
+ }
+ char* r = wtou(w);
+ free((void*)w);
+ return r;
+}
+
+void fix_path(wchar_t* w)
+{
+ wchar_t* p;
+ for (p = w; *p; ++p)
+  if (L'/' == *p)
+   *p = L'\\';
+}
+
 int uopen2(const char *filename,int oflag)
 {
  wchar_t* wf = utow (filename);
+ fix_path(wf);
  int fd = _wopen (wf, oflag);
  free (wf);
  return fd;
@@ -41,6 +64,7 @@ int uopen2(const char *filename,int oflag)
 int uopen3(const char *filename,int oflag,int pmode)
 {
  wchar_t* wf = utow (filename);
+ fix_path(wf);
  int fd = _wopen (wf, oflag, pmode);
  free (wf);
  return fd;
@@ -50,6 +74,7 @@ FILE * ufopen(const char * _Filename,const char * _Mode)
 {
  wchar_t* wf = utow (_Filename);
  wchar_t* wm = utow (_Mode);
+ fix_path(wf);
  FILE * f = _wfopen (wf, wm);
  free (wf);
  free (wm);
@@ -59,6 +84,7 @@ FILE * ufopen(const char * _Filename,const char * _Mode)
 int uaccess(const char *path,int mode)
 {
  wchar_t* wp = utow(path);
+ fix_path(wp);
  int r = _waccess(wp,mode);
  free((void*)wp);
  return r;
@@ -67,6 +93,7 @@ int uaccess(const char *path,int mode)
 int ustat (const char *filename, struct _stat *buf)
 {
  wchar_t* wf = utow (filename);
+ fix_path(wf);
  int r = _wstat(wf,buf);
  free ((void*)wf);
  return r;
@@ -101,6 +128,7 @@ char** getwargv(int* argc)
 int uchdir (const char *dir)
 {
  wchar_t* wname = utow (dir);
+ fix_path(wname);
  int r = _wchdir (wname);
  free((void*)wname);
  return r;
@@ -110,6 +138,7 @@ _WDIR* uopendir (const char *dir_name)
 {
  _WDIR *dirp;
  wchar_t* wf = utow (dir_name);
+ fix_path(wf);
  dirp = _wopendir (wf);
  free ((void*)wf);
  return dirp;
@@ -119,6 +148,7 @@ int uchmod( const char *filename, int pmode )
 {
  int r;
  wchar_t* wf = utow (filename);
+ fix_path(wf);
  r = _wchmod (wf,pmode);
  free ((void*)wf);
  return r;
@@ -128,6 +158,7 @@ int uunlink(const char *filename)
 {
  int r;
  wchar_t* wf = utow (filename);
+ fix_path(wf);
  r = _wunlink (wf);
  free ((void*)wf);
  return r;
@@ -137,6 +168,7 @@ int uremove(const char *path)
 {
  int r;
  wchar_t* wf = utow (path);
+ fix_path(wf);
  r = _wremove (wf);
  free ((void*)wf);
  return r;
@@ -147,10 +179,29 @@ int urename(const char *oldname,const char *newname)
  int r;
  wchar_t* wo = utow (oldname);
  wchar_t* wn = utow (newname);
+ fix_path(wo);
+ fix_path(wn);
  r = _wrename (wo,wn);
  free ((void*)wo);
  free ((void*)wn);
  return r;
+}
+
+char* ulrealpath (const char *filename)
+{
+ wchar_t buf[MAX_PATH];
+ wchar_t* wfilename;
+ wfilename = utow(filename);
+ fix_path(wfilename);
+ DWORD len = GetFullPathNameW (wfilename, MAX_PATH,(LPWSTR)&buf, NULL);
+ free((void*)wfilename);
+ if (len == 0 || len > MAX_PATH - 1) 
+ {
+  return strdup (filename);
+ } else {
+  CharLowerBuffW (buf, len);
+  return wtou(buf);
+ }
 }
 
 int _ufgetc(FILE * _file,char* ubuf)
@@ -322,13 +373,13 @@ int _ufgetc(FILE * _file,char* ubuf)
 
 int _utf8_char_len (const char *linebuf)
 {
- switch (linebuf[0]) {
+ switch ((unsigned char)linebuf[0]) {
 
   case 0x00 ... 0x7F:
    return 1;
 
   case 0xC2 ... 0xDF:
-   switch (linebuf[1]) {
+   switch ((unsigned char)linebuf[1]) {
     case 0x80 ... 0xBF:
      return 2;
     default:
@@ -336,9 +387,9 @@ int _utf8_char_len (const char *linebuf)
    }
 
   case 0xE0:
-   switch (linebuf[1]) {
+   switch ((unsigned char)linebuf[1]) {
     case 0xA0 ... 0xBF:
-     switch (linebuf[2]) {
+     switch ((unsigned char)linebuf[2]) {
       case 0x80 ... 0xBF:
        return 3;
      default:
@@ -349,9 +400,9 @@ int _utf8_char_len (const char *linebuf)
    }
 
   case 0xE1 ... 0xEF:
-   switch (linebuf[1]) {
+   switch ((unsigned char)linebuf[1]) {
     case 0x80 ... 0xBF:
-     switch (linebuf[2]) {
+     switch ((unsigned char)linebuf[2]) {
       case 0x80 ... 0xBF:
        return 3;
      default:
@@ -362,11 +413,11 @@ int _utf8_char_len (const char *linebuf)
    }
 
   case 0xF0:
-   switch (linebuf[1]) {
+   switch ((unsigned char)linebuf[1]) {
     case 0x90 ... 0xBF:
-     switch (linebuf[2]) {
+     switch ((unsigned char)linebuf[2]) {
       case 0x80 ... 0xBF:
-       switch (linebuf[3]) {
+       switch ((unsigned char)linebuf[3]) {
         case 0x80 ... 0xBF:
          return 4;
         default:
@@ -380,11 +431,11 @@ int _utf8_char_len (const char *linebuf)
    }
 
   case 0xF1 ... 0xF4:
-   switch (linebuf[1]) {
+   switch ((unsigned char)linebuf[1]) {
     case 0x80 ... 0xBF:
-     switch (linebuf[2]) {
+     switch ((unsigned char)linebuf[2]) {
       case 0x80 ... 0xBF:
-       switch (linebuf[3]) {
+       switch ((unsigned char)linebuf[3]) {
         case 0x80 ... 0xBF:
          return 4;
         default:

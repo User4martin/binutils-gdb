@@ -39,6 +39,10 @@ orig_open (const char *filename, int flags, mode_t mode)
   wf = (wchar_t *) calloc(size,sizeof(wchar_t));
   MultiByteToWideChar(CP_UTF8,0,filename,-1,wf,size);
  }
+ wchar_t* p;
+ for (p = wf; *p; ++p)
+  if (L'/' == *p)
+   *p = L'\\';
  int fd = _wopen (wf, flags, mode);
  free (wf);
  return fd;

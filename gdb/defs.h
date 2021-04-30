@@ -48,16 +48,16 @@
 
 #include <fcntl.h>
 
+#ifdef _WIN32
+#include "wtou.h"
+#endif
+
 #include "gdb_wchar.h"
 
 #include "ui-file.h"
 
 #include "gdbsupport/host-defs.h"
 #include "gdbsupport/enum-flags.h"
-
-#ifdef _WIN32
-#include "wtou.h"
-#endif
 
 /* Scope types enumerator.  List the types of scopes the compiler will
    accept.  */

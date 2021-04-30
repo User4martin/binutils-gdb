@@ -448,7 +448,13 @@ pwd_command (const char *args, int from_tty)
   if (args)
     error (_("The \"pwd\" command does not take an argument: %s"), args);
 
-  gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  #ifdef WTOU_H
+   wchar_t* wd = _wgetcwd (NULL, 0);
+   gdb::unique_xmalloc_ptr<char> cwd (wtou (wd));
+   free((void*)wd);
+  #else
+   gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  #endif
 
   if (cwd == NULL)
     error (_("Error finding name of working directory: %s"),
@@ -488,7 +494,13 @@ cd_command (const char *dir, int from_tty)
   /* There's too much mess with DOSish names like "d:", "d:.",
      "d:./foo" etc.  Instead of having lots of special #ifdef'ed code,
      simply get the canonicalized name of the current directory.  */
-  gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  #ifdef WTOU_H
+   wchar_t* wd = _wgetcwd (NULL, 0);
+   gdb::unique_xmalloc_ptr<char> cwd (wtou (wd));
+   free((void*)wd);
+  #else
+   gdb::unique_xmalloc_ptr<char> cwd (getcwd (NULL, 0));
+  #endif
   dir = cwd.get ();
 #endif
 

@@ -64,7 +64,15 @@ gdb_dlopen (const char *filename)
 #ifdef HAVE_DLFCN_H
   result = dlopen (filename, RTLD_NOW);
 #elif __MINGW32__
-  result = (void *) LoadLibrary (filename);
+  wchar_t* wfilename = NULL;
+  int size;
+  size = MultiByteToWideChar(CP_UTF8,0,filename,-1,NULL,0);
+  if (size) {
+   wfilename = (wchar_t *) calloc(size,sizeof(wchar_t));
+   MultiByteToWideChar(CP_UTF8,0,filename,-1,wfilename,size);
+  }
+  result = (void *) LoadLibraryW (wfilename);
+  free((void*)wfilename);
 #endif
   if (result != NULL)
     return gdb_dlhandle_up (result);

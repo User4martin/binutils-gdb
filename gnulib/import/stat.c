@@ -56,6 +56,10 @@ orig_stat (const char *filename, struct stat *buf)
   wf = (wchar_t *) calloc(size,sizeof(wchar_t));
   MultiByteToWideChar(CP_UTF8,0,filename,-1,wf,size);
  }
+ wchar_t* p;
+ for (p = wf; *p; ++p)
+  if (L'/' == *p)
+   *p = L'\\';
  int r = wstat(wf,buf);
  free (wf);
  return r;

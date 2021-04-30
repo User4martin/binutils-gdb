@@ -218,6 +218,10 @@ fchdir (int fd)
     wname = (wchar_t *) calloc(size,sizeof(wchar_t));
     MultiByteToWideChar(CP_UTF8,0,name,-1,wname,size);
    }
+   wchar_t* p;
+   for (p = wname; *p; ++p)
+    if (L'/' == *p)
+     *p = L'\\';
    int r = wname ? _wchdir (wname) : -1;
    free((void*)wname);
    return r;

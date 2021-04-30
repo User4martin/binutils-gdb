@@ -158,6 +158,6 @@
 
 #ifdef _WIN32
 #include "../gdb/wtou.h"
-#define open uopen3
+#define open(f,m,d) (uopen3) (f,m,d)
 #endif
 

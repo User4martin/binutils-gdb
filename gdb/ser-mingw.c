@@ -1348,7 +1348,7 @@ _initialize_ser_windows (void)
   HMODULE hm = NULL;
 
   /* First find out if kernel32 exports CancelIo function.  */
-  hm = LoadLibrary ("kernel32.dll");
+  hm = LoadLibraryW (L"kernel32.dll");
   if (hm)
     {
       CancelIo = (CancelIo_ftype *) GetProcAddress (hm, "CancelIo");

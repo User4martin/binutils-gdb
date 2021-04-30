@@ -644,7 +644,30 @@ _rl_output_character_function (int c)
 void
 _rl_output_some_chars (const char *string, int count)
 {
+#ifdef WTOU_H
+ int fd = fileno (_rl_out_stream);
+ if (!isatty (fd)) 
+ {
+  DWORD L = 0;
+  WriteFile( (HANDLE) _get_osfhandle(fd),string,count,&L,NULL);
+  return;
+ }
+
+ wchar_t* ws = NULL;
+ int size;
+ size = MultiByteToWideChar(CP_UTF8,0,string,count,NULL,0);
+ if (size) {
+  ws = (wchar_t *) calloc(size,sizeof(wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,string,count,ws,size);
+ }
+
+ DWORD L = 0;
+ WriteConsoleW( (HANDLE) _get_osfhandle(fd),(LPWSTR)ws,size,&L,NULL);
+ free((void*)ws);
+
+#else
   fwrite (string, 1, count, _rl_out_stream);
+#endif
 }
 
 /* Move the cursor back. */

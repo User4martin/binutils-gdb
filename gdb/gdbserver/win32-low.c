@@ -598,19 +598,42 @@ Could not convert the expanded inferior cwd to wide-char."));
 			NULL,     /* start info, not supported */
 			pi);      /* proc info */
 #else
-  STARTUPINFOA si = { sizeof (STARTUPINFOA) };
+  STARTUPINFOW si = { sizeof (STARTUPINFOW) };
 
-  ret = CreateProcessA (program,  /* image name */
-			args,     /* command line */
+  wchar_t *p, *wprogram, *wargs, *wcwd = NULL;
+  size_t argslen;
+
+  argslen = MultiByteToWideChar(CP_UTF8,0,program,-1,NULL,0);
+  wprogram = (wchar_t*) alloca (argslen * sizeof (wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,program,-1,wprogram,argslen);
+
+  for (p = wprogram; *p; ++p)
+    if (L'/' == *p)
+      *p = L'\\';
+
+  argslen = MultiByteToWideChar(CP_UTF8,0,args,-1,NULL,0);
+  wargs = (wchar_t*) alloca (argslen * sizeof (wchar_t));
+  MultiByteToWideChar(CP_UTF8,0,args,-1,wargs,argslen);
+
+  if (inferior_cwd != NULL)
+    {
+      std::string expanded_infcwd = gdb_tilde_expand (inferior_cwd);
+      argslen = MultiByteToWideChar(CP_UTF8,0,expanded_infcwd.c_str (),-1,NULL,0);
+      wcwd = (wchar_t*) alloca (argslen * sizeof (wchar_t));
+      MultiByteToWideChar(CP_UTF8,0,expanded_infcwd.c_str (),-1,wcwd,argslen);
+      for (p = wcwd; *p; ++p)
+       if (L'/' == *p)
+         *p = L'\\';
+    }
+
+  ret = CreateProcessW (wprogram,  /* image name */
+			wargs,     /* command line */
 			NULL,     /* security */
 			NULL,     /* thread */
 			TRUE,     /* inherit handles */
 			flags,    /* start flags */
 			NULL,     /* environment */
-			/* current directory */
-			(inferior_cwd == NULL
-			 ? NULL
-			 : gdb_tilde_expand (inferior_cwd).c_str()),
+			wcwd,     /* current directory */
 			&si,      /* start info */
 			pi);      /* proc info */
 #endif
@@ -722,7 +745,7 @@ win32_attach (unsigned long pid)
 #ifdef _WIN32_WCE
   HMODULE dll = GetModuleHandle (_T("COREDLL.DLL"));
 #else
-  HMODULE dll = GetModuleHandle (_T("KERNEL32.DLL"));
+  HMODULE dll = GetModuleHandleW (L"KERNEL32.DLL");
 #endif
   DebugSetProcessKillOnExit = GETPROCADDRESS (dll, DebugSetProcessKillOnExit);
 
@@ -837,7 +860,7 @@ win32_detach (process_info *process)
 #ifdef _WIN32_WCE
   HMODULE dll = GetModuleHandle (_T("COREDLL.DLL"));
 #else
-  HMODULE dll = GetModuleHandle (_T("KERNEL32.DLL"));
+  HMODULE dll = GetModuleHandleW (L"KERNEL32.DLL");
 #endif
   DebugActiveProcessStop = GETPROCADDRESS (dll, DebugActiveProcessStop);
   DebugSetProcessKillOnExit = GETPROCADDRESS (dll, DebugSetProcessKillOnExit);
@@ -979,17 +1002,20 @@ win32_resume (struct thread_resume *resume_info, size_t n)
 static void
 win32_add_one_solib (const char *name, CORE_ADDR load_addr)
 {
+#ifdef _WIN32_WCE
   char buf[MAX_PATH + 1];
   char buf2[MAX_PATH + 1];
-
-#ifdef _WIN32_WCE
   WIN32_FIND_DATA w32_fd;
   WCHAR wname[MAX_PATH + 1];
   mbstowcs (wname, name, MAX_PATH);
   HANDLE h = FindFirstFile (wname, &w32_fd);
 #else
-  WIN32_FIND_DATAA w32_fd;
-  HANDLE h = FindFirstFileA (name, &w32_fd);
+  wchar_t buf[MAX_PATH + 1];
+  char buf2[MAX_PATH + 1];
+  WIN32_FIND_DATAW w32_fd;
+  wchar_t wname[MAX_PATH + 1];
+  MultiByteToWideChar(CP_UTF8,0,name,-1,(LPWSTR)&wname,MAX_PATH + 1);
+  HANDLE h = FindFirstFileW (wname, &w32_fd);
 #endif
 
   /* The symbols in a dll are offset by 0x1000, which is the
@@ -998,40 +1024,48 @@ win32_add_one_solib (const char *name, CORE_ADDR load_addr)
   load_addr += 0x1000;
 
   if (h == INVALID_HANDLE_VALUE)
+   #ifdef _WIN32_WCE
     strcpy (buf, name);
+   #else
+    MultiByteToWideChar(CP_UTF8,0,name,-1,(LPWSTR)&buf,MAX_PATH + 1);
+   #endif
   else
     {
       FindClose (h);
+     #ifdef _WIN32_WCE
       strcpy (buf, name);
+     #else
+      MultiByteToWideChar(CP_UTF8,0,name,-1,(LPWSTR)&buf,MAX_PATH + 1);
+     #endif
 #ifndef _WIN32_WCE
       {
-	char cwd[MAX_PATH + 1];
-	char *p;
-	if (GetCurrentDirectoryA (MAX_PATH + 1, cwd))
+	wchar_t cwd[MAX_PATH + 1];
+	wchar_t *p;
+	if (GetCurrentDirectoryW (MAX_PATH + 1, cwd))
 	  {
-	    p = strrchr (buf, '\\');
+	    p = wcsrchr (buf, '\\');
 	    if (p)
-	      p[1] = '\0';
-	    SetCurrentDirectoryA (buf);
-	    GetFullPathNameA (w32_fd.cFileName, MAX_PATH, buf, &p);
-	    SetCurrentDirectoryA (cwd);
+	      p[1] = L'\0';
+	    SetCurrentDirectoryW (buf);
+	    GetFullPathNameW (w32_fd.cFileName, MAX_PATH + 1, buf, &p);
+	    SetCurrentDirectoryW (cwd);
 	  }
       }
 #endif
     }
 
 #ifndef _WIN32_WCE
-  if (strcasecmp (buf, "ntdll.dll") == 0)
+  if (wcscmp (buf, L"ntdll.dll") == 0)
     {
-      GetSystemDirectoryA (buf, sizeof (buf));
-      strcat (buf, "\\ntdll.dll");
+      GetSystemDirectoryW (buf, MAX_PATH + 1);
+      wcscat (buf, L"\\ntdll.dll");
     }
 #endif
 
 #ifdef __CYGWIN__
   cygwin_conv_path (CCP_WIN_A_TO_POSIX, buf, buf2, sizeof (buf2));
 #else
-  strcpy (buf2, buf);
+  WideCharToMultiByte(CP_UTF8,0,(LPWSTR)&buf,MAX_PATH + 1,(LPSTR)&buf2,MAX_PATH + 1,NULL,NULL);
 #endif
 
   loaded_dll (buf2, load_addr);
@@ -1080,7 +1114,7 @@ get_image_name (HANDLE h, void *address, int unicode)
       ReadProcessMemory (h, address_ptr, unicode_address, len * sizeof (WCHAR),
 			 &done);
 
-      WideCharToMultiByte (CP_ACP, 0, unicode_address, len, buf, len, 0, 0);
+      WideCharToMultiByte (CP_UTF8, 0, unicode_address, len, buf, len, 0, 0);
     }
 
   return buf;
@@ -1090,12 +1124,12 @@ typedef BOOL (WINAPI *winapi_EnumProcessModules) (HANDLE, HMODULE *,
 						  DWORD, LPDWORD);
 typedef BOOL (WINAPI *winapi_GetModuleInformation) (HANDLE, HMODULE,
 						    LPMODULEINFO, DWORD);
-typedef DWORD (WINAPI *winapi_GetModuleFileNameExA) (HANDLE, HMODULE,
-						     LPSTR, DWORD);
+typedef DWORD (WINAPI *winapi_GetModuleFileNameExW) (HANDLE, HMODULE,
+						     LPWSTR, DWORD);
 
 static winapi_EnumProcessModules win32_EnumProcessModules;
 static winapi_GetModuleInformation win32_GetModuleInformation;
-static winapi_GetModuleFileNameExA win32_GetModuleFileNameExA;
+static winapi_GetModuleFileNameExW win32_GetModuleFileNameExW;
 
 static BOOL
 load_psapi (void)
@@ -1106,20 +1140,20 @@ load_psapi (void)
   if (!psapi_loaded)
     {
       psapi_loaded = 1;
-      dll = LoadLibrary (TEXT("psapi.dll"));
+      dll = LoadLibraryW (L"psapi.dll");
       if (!dll)
 	return FALSE;
       win32_EnumProcessModules =
 	      GETPROCADDRESS (dll, EnumProcessModules);
       win32_GetModuleInformation =
 	      GETPROCADDRESS (dll, GetModuleInformation);
-      win32_GetModuleFileNameExA =
-	      GETPROCADDRESS (dll, GetModuleFileNameExA);
+      win32_GetModuleFileNameExW =
+	      GETPROCADDRESS (dll, GetModuleFileNameExW);
     }
 
   return (win32_EnumProcessModules != NULL
 	  && win32_GetModuleInformation != NULL
-	  && win32_GetModuleFileNameExA != NULL);
+	  && win32_GetModuleFileNameExW != NULL);
 }
 
 #ifndef _WIN32_WCE
@@ -1163,17 +1197,19 @@ win32_add_all_dlls (void)
     {
       MODULEINFO mi;
       char dll_name[MAX_PATH];
+      wchar_t wdll_name[MAX_PATH];
 
       if (!(*win32_GetModuleInformation) (current_process_handle,
 					  DllHandle[i],
 					  &mi,
 					  sizeof (mi)))
 	continue;
-      if ((*win32_GetModuleFileNameExA) (current_process_handle,
+      if ((*win32_GetModuleFileNameExW) (current_process_handle,
 					 DllHandle[i],
-					 dll_name,
+					 wdll_name,
 					 MAX_PATH) == 0)
 	continue;
+      WideCharToMultiByte(CP_UTF8,0,(LPWSTR)&wdll_name,MAX_PATH,(LPSTR)&dll_name,MAX_PATH,NULL,NULL);
       win32_add_one_solib (dll_name, (CORE_ADDR) (uintptr_t) mi.lpBaseOfDll);
     }
 }
@@ -1671,7 +1707,7 @@ win32_request_interrupt (void)
 #ifdef _WIN32_WCE
   HMODULE dll = GetModuleHandle (_T("COREDLL.DLL"));
 #else
-  HMODULE dll = GetModuleHandle (_T("KERNEL32.DLL"));
+  HMODULE dll = GetModuleHandleW (L"KERNEL32.DLL");
 #endif
 
   GenerateConsoleCtrlEvent = GETPROCADDRESS (dll, GenerateConsoleCtrlEvent);

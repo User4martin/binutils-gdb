@@ -168,7 +168,19 @@ __getcwd (char *buf, size_t size)
      this wrong result with errno = 0.  */
 
 # undef getcwd
+ #ifdef _WIN32
+  dir = NULL;
+  {
+   wchar_t* wd = _wgetcwd (NULL, 0);
+   if (wd) {
+    MultiByteToWideChar(CP_UTF8,0,wd,-1,buf,size);
+    free((void*)wd);
+    dir = &buf;
+   }
+  }
+ #else
   dir = getcwd (buf, size);
+ #endif
   if (dir || (size && errno == ERANGE))
     return dir;
 

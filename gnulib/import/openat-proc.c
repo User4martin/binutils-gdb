@@ -47,6 +47,10 @@ int uaccess(const char *path,int mode)
   wp = (wchar_t *) calloc(size,sizeof(wchar_t));
   MultiByteToWideChar(CP_UTF8,0,path,-1,wp,size);
  }
+ wchar_t* p;
+ for (p = wp; *p; ++p)
+  if (L'/' == *p)
+   *p = L'\\';
  int r = _waccess(wp,mode);
  free((void*)wp);
 }

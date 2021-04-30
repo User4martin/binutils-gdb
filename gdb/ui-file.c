@@ -255,11 +255,7 @@ stdio_file::read (char *buf, long length_buf)
       return -1;
   }
 
-  //#ifdef _WIN32
-  //return uread (m_fd, buf, length_buf);
-  //#else
   return ::read (m_fd, buf, length_buf);
-  //#endif
 
 }
 
@@ -295,7 +291,12 @@ stdio_file::puts (const char *linebuffer)
   if (gdb_console_fputs (linebuffer, m_file))
     return;
   /* Calling error crashes when we are called from the exception framework.  */
+ #ifdef _WIN32
+  DWORD L = 0;
+  WriteFile((HANDLE)_get_osfhandle(fileno(m_file)),linebuffer,strlen(linebuffer),&L,NULL);
+ #else
   if (fputs (linebuffer, m_file))
+ #endif
     {
       /* Nothing.  */
     }

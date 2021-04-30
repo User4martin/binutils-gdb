@@ -1,8 +1,13 @@
 #!/bin/sh
 
+EXPAT=""
+if [[ -d "./expat/build_x32" ]]; then
+ EXPAT="--with-expat --with-libexpat-prefix="$(readlink -m "./expat/build_x32")
+fi
+
 mkdir build_x32
 cd build_x32
-./../configure --enable-static=yes --disable-gprof --disable-binutils --disable-gas --disable-gold --disable-texinfo --disable-gdbserver --target=i686-w64-mingw32 --host=i686-w64-mingw32
+./../configure --enable-static=yes $EXPAT --disable-gprof --disable-binutils --disable-gas --disable-gold --disable-texinfo --disable-gdbserver --disable-ld --target=i686-w64-mingw32 --host=i686-w64-mingw32
 
 echo "Press enter to continue"
 read _

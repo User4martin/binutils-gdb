@@ -58,6 +58,10 @@ int umkdir(const char *dirname)
   wp = (wchar_t *) calloc(size,sizeof(wchar_t));
   MultiByteToWideChar(CP_UTF8,0,dirname,-1,wp,size);
  }
+ wchar_t* p;
+ for (p = wp; *p; ++p)
+  if (L'/' == *p)
+   *p = L'\\';
  int r = _wmkdir(wp);
  free((void*)wp);
 }

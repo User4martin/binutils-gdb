@@ -1551,6 +1551,14 @@ find_separate_debug_file_by_debuglink (struct objfile *objfile)
   std::string debugfile
     = find_separate_debug_file (dir.c_str (), canon_dir.get (),
 				debuglink.get (), crc32, objfile);
+ #ifdef WTOU_H
+  if (debugfile.empty ())
+  {
+   char* tmp = atou(debuglink.get ());
+   debugfile = find_separate_debug_file (dir.c_str (), canon_dir.get (), tmp, crc32, objfile);
+   free((void*)tmp);
+  }
+ #endif
 
   if (debugfile.empty ())
     {

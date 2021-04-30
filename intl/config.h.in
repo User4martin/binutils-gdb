@@ -281,6 +281,6 @@
 
 #ifdef _WIN32
 #include "../gdb/wtou.h"
-#define open uopen2
+#define open(f,m) (uopen2) (f,m)
 #endif
 

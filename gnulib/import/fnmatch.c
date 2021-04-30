@@ -119,6 +119,23 @@ extern int fnmatch (const char *pattern, const char *string, int flags);
 #   define HANDLE_MULTIBYTE     1
 #  endif
 
+#ifdef _WIN32
+#include <stdlib.h>
+#include <windows.h>
+#include <uchar.h>
+#undef NO_MULTIBYTE_SUPPORT
+#undef FIONREAD_IN_SYS_IOCTL
+#undef FIONREAD
+#define HANDLE_MULTIBYTE      1
+#  define wcrtomb(s, wc, ps) (c16rtomb) (s, wc, ps)
+#  define mbrtowc(pwc, s, n, ps) (mbrtoc16) (pwc, s, n, ps)
+#  define mbrlen(s, n, ps) (MultiByteToWideChar) (CP_UTF8,0,s,n,NULL,0)
+#undef MB_CUR_MAX
+#  define MB_CUR_MAX (4)
+#undef __mb_cur_max
+#  define __mb_cur_max (4)
+#endif
+
 # else
 #  define CHAR_CLASS_MAX_LENGTH  6 /* Namely, 'xdigit'.  */
 

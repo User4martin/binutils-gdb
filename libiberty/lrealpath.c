@@ -148,6 +148,10 @@ lrealpath (const char *filename)
      wfilename = (wchar_t *) calloc(size,sizeof(wchar_t));
      MultiByteToWideChar(CP_UTF8,0,filename,-1,wfilename,size);
     }
+    wchar_t* p;
+    for (p = wfilename; *p; ++p)
+     if (L'/' == *p)
+      *p = L'\\';
     DWORD len = GetFullPathNameW (wfilename, MAX_PATH, buf, &basename);
     free((void*)wfilename);
     if (len == 0 || len > MAX_PATH - 1) 

@@ -443,3 +443,8 @@
 
 /* Define as `fork' if `vfork' does not work. */
 #undef vfork
+
+#ifdef _WIN32
+#include "wtou.h"
+#endif
+

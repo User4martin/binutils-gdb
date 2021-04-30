@@ -3326,7 +3326,7 @@ _initialize_loadable (void)
 #define GPA(m, func)					\
   func = (func ## _ftype *) GetProcAddress (m, #func)
 
-  hm = LoadLibrary ("kernel32.dll");
+  hm = LoadLibraryW (L"kernel32.dll");
   if (hm)
     {
       GPA (hm, DebugActiveProcessStop);
@@ -3353,7 +3353,7 @@ _initialize_loadable (void)
 
   /* Load optional functions used for retrieving filename information
      associated with the currently debugged process or its dlls.  */
-  hm = LoadLibrary ("psapi.dll");
+  hm = LoadLibraryW (L"psapi.dll");
   if (hm)
     {
       GPA (hm, EnumProcessModules);
@@ -3376,7 +3376,7 @@ cannot automatically find executable file or library to read symbols.\n\
 Use \"file\" or \"dll\" command to load executable/libraries directly."));
     }
 
-  hm = LoadLibrary ("advapi32.dll");
+  hm = LoadLibraryW (L"advapi32.dll");
   if (hm)
     {
       GPA (hm, OpenProcessToken);

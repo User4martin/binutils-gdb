@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [[ ! -f "configure" ]]; then
+ ./buildconf.sh
+fi
+
+mkdir "./build_x32"
+
+./configure CPPFLAGS=-DXML_LARGE_SIZE --prefix=$(readlink -m "./build_x32") --enable-static=yes --host=i686-w64-mingw32
+
+echo "Press enter to continue"
+read _
+
+make clean
+make install LDFLAGS=-static
+
