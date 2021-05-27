@@ -566,6 +566,6 @@ struct bfd_link_info;
 struct bfd_link_hash_entry;
 
 #ifdef _WIN32
-#include "../gdb/wtou.h"
+#include "wtou.h"
 #endif
 

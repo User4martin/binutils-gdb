@@ -577,7 +577,7 @@
 #undef vfork
 
 #ifdef _WIN32
-#include "../gdb/wtou.h"
+#include "wtou.h"
 #define open uopen3
 #endif
 

@@ -418,7 +418,7 @@
 #undef _POSIX_SOURCE
 
 #ifdef _WIN32
-#include "../../gdb/wtou.h"
+#include "wtou.h"
 #define opendir(Dir) (uopendir)(Dir)
 #define lrealpath(varname) (ulrealpath)(varname)
 #define open(f,m) (uopen2) (f,m)

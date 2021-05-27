@@ -154,7 +154,7 @@ CFILES = alloca.c argv.c asprintf.c atexit.c				\
 	 strncmp.c strrchr.c strsignal.c strstr.c strtod.c strtol.c	\
 	 strtoll.c strtoul.c strtoull.c strndup.c strnlen.c             \
 	 strverscmp.c timeval-utils.c tmpnam.c				\
-	unlink-if-ordinary.c						\
+	unlink-if-ordinary.c	wtou.c					\
 	vasprintf.c vfork.c vfprintf.c vprintf.c vprintf-support.c	\
 	 vsnprintf.c vsprintf.c						\
 	waitpid.c							\
@@ -190,7 +190,7 @@ REQUIRED_OFILES =							\
 	./sort.$(objext) ./spaces.$(objext)				\
 	./splay-tree.$(objext) ./stack-limit.$(objext)			\
 	./strerror.$(objext) ./strsignal.$(objext)			\
-	./timeval-utils.$(objext) ./unlink-if-ordinary.$(objext)	\
+	./timeval-utils.$(objext) ./unlink-if-ordinary.$(objext)	wtou.$(objext)	\
 	./xasprintf.$(objext) ./xatexit.$(objext) ./xexit.$(objext)	\
 	./xmalloc.$(objext) ./xmemdup.$(objext) ./xstrdup.$(objext)	\
 	./xstrerror.$(objext) ./xstrndup.$(objext)			\
@@ -614,6 +614,15 @@ $(CONFIGURED_OFILES): stamp-picdir stamp-noasandir
 	  $(COMPILE.c) $(PICFLAG) $(NOASANFLAG) $(srcdir)/calloc.c -o noasan/$@; \
 	else true; fi
 	$(COMPILE.c) $(srcdir)/calloc.c $(OUTPUT_OPTION)
+
+./wtou.$(objext): $(srcdir)/wtou.c $(INCDIR)/ansidecl.h
+	if [ x"$(PICFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(srcdir)/wtou.c -o pic/$@; \
+	else true; fi
+	if [ x"$(NOASANFLAG)" != x ]; then \
+	  $(COMPILE.c) $(PICFLAG) $(NOASANFLAG) $(srcdir)/wtou.c -o noasan/$@; \
+	else true; fi
+	$(COMPILE.c) $(srcdir)/wtou.c $(OUTPUT_OPTION)
 
 ./choose-temp.$(objext): $(srcdir)/choose-temp.c config.h $(INCDIR)/ansidecl.h \
 	$(INCDIR)/libiberty.h
